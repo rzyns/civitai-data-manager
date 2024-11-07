@@ -18,22 +18,29 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 def get_output_path():
     """
-    Get output path from user and create necessary directories
+    Get output path from user and create necessary directories.
+    If no path is provided (empty input), use current directory.
     
     Returns:
         Path: Base output directory path
     """
     while True:
-        output_path = input("Enter the path where you want to save the exported files: ").strip()
-        path = Path(output_path)
+        output_path = input("Enter the path where you want to save the exported files (press Enter for current directory): ").strip()
+        
+        # Use current directory if input is empty
+        if not output_path:
+            path = Path.cwd() / 'output'
+            print(f"Using current directory: {path}")
+        else:
+            path = Path(output_path)
         
         if not path.exists():
             try:
-                create = input(f"Directory {output_path} doesn't exist. Create it? (y/n): ").lower()
+                create = input(f"Directory {path} doesn't exist. Create it? (y/n): ").lower()
                 if create == 'y':
                     path.mkdir(parents=True, exist_ok=True)
                 else:
