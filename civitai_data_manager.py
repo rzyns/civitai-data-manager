@@ -72,7 +72,7 @@ def main():
                         only_new=args.onlynew,
                         html_only=args.onlyhtml)
         
-    if not args.onlyhtml and (args.single or args.all):
+    if (args.single or args.all):
         generate_global_summary(base_output_path, VERSION)
 
 if __name__ == "__main__":

@@ -37,7 +37,8 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 hash_data = json.load(f)
 
             # Get stats data
-            stats = model_data.get('stats', {})
+            model_version = next((version for version in model_data["modelVersions"] if version["id"] == version_data.get('id')), None)
+            stats = model_version.get('stats', {})
             
             # Generate image gallery HTML
             gallery_html = ""
@@ -286,7 +287,8 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
     <div class="container">
         <div class="header">
             <div class="menu"><a href="../models_manager.html">Civitai Metadata Manager</a></div>
-            <h1>{model_data.get('name', 'Model Information')}</h1>
+            <h1>{model_data.get('name', 'Model Name')}</h1>
+            <div><em>{version_data.get('name', 'Version Name')}</em></div>
             <div>by <strong><a href="https://civitai.com/user/{model_data.get('creator', {}).get('username', 'Unknown Creator')}" target="_blank">{model_data.get('creator', {}).get('username', 'Unknown Creator')}</a></strong></div>
         </div>
 
@@ -299,6 +301,9 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 
             <div class="label">Model ID:</div>
             <div class="value">{model_data.get('id', 'N/A')}</div>
+
+            <div class="label">Version ID:</div>
+            <div class="value">{version_data.get('id', 'N/A')}</div>
             
             <!-- <div class="label">NSFW:</div>
             <div class="value">

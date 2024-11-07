@@ -20,22 +20,35 @@ def generate_global_summary(output_dir, VERSION):
         
         for model_file in model_files:
             try:
+                # Get paths for both model and version files
+                base_name = model_file.parent.name
+                version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
+        
+                # Read both files
                 with open(model_file, 'r', encoding='utf-8') as f:
                     model_data = json.load(f)
-                    base_name = model_file.parent.name
-                    model_type = model_data.get('type', 'Unknown')
+
+                version_data = {}
+                if version_file.exists():
+                    with open(version_file, 'r', encoding='utf-8') as f:
+                        version_data = json.load(f)
+
+                model_type = model_data.get('type', 'Unknown')
+                
+                if model_type not in models_by_type:
+                    models_by_type[model_type] = []
                     
-                    if model_type not in models_by_type:
-                        models_by_type[model_type] = []
-                        
-                    models_by_type[model_type].append({
-                        'name': model_data.get('name', 'Unknown'),
-                        'creator': model_data.get('creator', {}).get('username', 'Unknown'),
-                        'downloads': model_data.get('stats', {}).get('downloadCount', 0),
-                        'base_name': base_name,
-                        'html_file': f"{base_name}.html",
-                        'tags': model_data.get('tags', [])
-                    })
+                models_by_type[model_type].append({
+                    # Add model data
+                    'name': model_data.get('name', 'Unknown'),
+                    'creator': model_data.get('creator', {}).get('username', 'Unknown'),
+                    'base_name': base_name,
+                    'html_file': f"{base_name}.html",
+                    'tags': model_data.get('tags', []),
+                    # Add version data
+                    'version_name': version_data.get('name', ''),
+                    'downloads': version_data.get('stats', {}).get('downloadCount', 0),
+                })
             except:
                 continue
 
@@ -55,6 +68,7 @@ def generate_global_summary(output_dir, VERSION):
                     {''.join(f"""
                     <div class="model-card" data-tags="{','.join(model['tags']).lower()}">
                         <h3><a href="{model['base_name']}/{model['html_file']}">{model['name']}</a></h3>
+                        <small class="version-name">{model['version_name']}</small>
                         <div>by {model['creator']}</div>
                         <div class="downloads">Downloads: {model['downloads']:,}</div>
                         <div class="tags">
@@ -146,6 +160,10 @@ def generate_global_summary(output_dir, VERSION):
         }}
         h3 {{
             margin: 0;
+        }}
+        .version-name {{
+            margin-top: -5px;
+            display: block;
         }}
         .hidden {{
             display: none !important;
