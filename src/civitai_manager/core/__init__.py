@@ -1,0 +1,1 @@
+from .metadata_manager import process_single_file, process_directory

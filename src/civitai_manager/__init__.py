@@ -1,0 +1,1 @@
+from .core.metadata_manager import VERSION
