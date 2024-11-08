@@ -248,7 +248,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 ## 🛣️ Roadmap
 
 - **🔥 Preview Image Metadata**: Display the metadata associated with preview images.
-- **File Sorting**: Add option to select the type of sorting in the generated browser.
+- **🐛 Fix Video in Preview Images**: Handle the videos in preview images.
+- **File Sorting**: Add option to select the default type of sorting in the generated browser.
+- **Filters**: Add option to filter models by Author or Base Model.
 - **Implement Logging**: Add logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
