@@ -1,38 +1,38 @@
 # Civitai Data Manager
 
-- [Overview](#overview)
-- [Key Benefits](#key-benefits)
-- [Model Compatibility](#model-compatibility)
-- [Getting Started](#getting-started)
+- [Overview](#-overview)
+- [Key Benefits](#-key-benefits)
+- [Model Compatibility](#-model-compatibility)
+- [Getting Started](#-getting-started)
   - [Requirements](#requirements)
   - [Installation](#installation)
-- [Usage Guide](#usage-guide)
+- [Usage Guide](#-usage-guide)
   - [Basic Commands](#basic-commands)
   - [Additional Options](#additional-options)
   - [Recommended Organization](#recommended-organization)
   - [Best Practices](#best-practices)
-- [Output Structure](#output-structure)
+- [Output Structure](#-output-structure)
   - [Directory Layout](#directory-layout)
   - [Missing Models Tracking](#missing-models-tracking)
-- [Features in Detail](#features-in-detail)
+- [Features in Detail](#-features-in-detail)
   - [Rate Limiting Protection](#rate-limiting-protection)
   - [Update Checking](#update-checking)
   - [HTML Generation](#html-generation)
   - [Processed Files Tracking](#processed-files-tracking)
-- [Roadmap](#roadmap)
-- [FAQ](#faq)
-- [Additional Information](#additional-information)
+- [FAQ](#-faq)
+- [Roadmap](#-roadmap)
+- [Additional Information](#-additional-information)
   - [Contributing](#contributing)
   - [License](#license)
   - [Acknowledgments](#acknowledgments)
 
-## Overview
+## 📄 Overview
 
 A Python script that fetches and saves metadata, description, tags, hashes, and preview images for SafeTensors model files by querying the Civitai API.
 
 It generates JSON files for data storage and interactive HTML pages for easy browsing. The script is especially useful for maintaining model information (trigger words, usage notes, authors) even after models might be removed from Civitai. By creating a local backup of crucial model data, you can ensure your collection remains well-documented and easily accessible regardless of the models' availability online.
 
-## Key Benefits
+## ✨ Key Benefits
 
 - **Save Trigger Words**: Preserve Lora trigger words even if the associated model is no longer available on Civitai.
 - **Protect Key Information**: Models may be removed from Civitai, making it crucial to back up their usage instructions for future reference.
@@ -42,7 +42,7 @@ It generates JSON files for data storage and interactive HTML pages for easy bro
 - **Track All Downloads**: Easily manage models downloaded from Civitai, even if they've been renamed.
 - **Smart Updates**: Updates only occur for models with new information on Civitai, keeping the process efficient.
 
-## Model Compatibility
+## 🔄 Model Compatibility
 
 Works with all `.safetensors` files available on Civitai:
 - Checkpoints
@@ -51,7 +51,7 @@ Works with all `.safetensors` files available on Civitai:
 - Embeddings
 - ...
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Requirements
 - Python 3.8 or higher
@@ -85,7 +85,7 @@ python main.py --help
 
 You should see the available command-line options displayed.
 
-## Usage Guide
+## 📖 Usage Guide
 
 ### Basic Commands
 
@@ -101,7 +101,7 @@ python main.py --all "path/to/your/models/directory"
 
 ### Additional Options
 
-- `--output`: Specify output directory (optional)
+- `--output`: Specify output directory
   ```bash
   python main.py --single "path/to/model.safetensors" --output "path/to/output"
   ```
@@ -128,17 +128,20 @@ python main.py --all "path/to/your/models/directory"
   python main.py --all "path/to/directory" --onlynew
   ```
 
+- `--onlyupdate`: Only update metadata for processed models
+  ```bash
+  python main.py --all "path/to/directory" --onlyupdate
+
 - `--onlyhtml`: Generate HTML files from existing data without fetching from Civitai
   ```bash
   python main.py --all "path/to/directory" --onlyhtml
   ```
   This option skips all API calls and only generates/updates HTML files.
-
-- `--onlyupdate`: Update previously processed files without recalculating hashes
+  
+- `--clean`: Remove data for models that no longer exist in source directory
   ```bash
-  python main.py --all "path/to/directory" --onlyupdate
-  ```
-  This option is useful to update only metadata or stats.
+  python main.py --all "path/to/directory" --clean
+
 
 ### Recommended Organization
 
@@ -161,7 +164,7 @@ python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux"
 - Just in case, always back up the generated data directory with your models
 - Monitor `missing_from_civitai.txt` for manual documentation needs
 
-## Output Structure
+## 🗃️ Output Structure
 
 ### Directory Layout
 
@@ -193,7 +196,7 @@ Format in `missing_from_civitai.txt`:
 2024-11-06 15:50:39 | Status 404 | model2.safetensors
 ```
 
-## Features in Detail
+## 🔍 Features in Detail
 
 ### Rate Limiting Protection
 - Default: random delay between 6-12 seconds after each model
@@ -232,7 +235,7 @@ If you do not have a lot of files to process, you can disable these delays using
 - Enables selective processing of new files with `--onlynew`
 - Records processing timestamp for each file
 
-## FAQ
+## ❓ FAQ
 
 ### How can you retrieve trigger words for a deleted Lora from Civitai?
 
@@ -242,15 +245,16 @@ If the Lora model has been deleted from Civitai, the script can still generate a
 
 This tool stands out for its simplicity and lightweight design. It requires no configuration and operates independently of any WebUI (such as A1111, ComfyUI, etc.). With a single command, it scans your models directory, gathers informations on Civitai, and generates a `models_manager.html` file.
 
-## Roadmap
+## 🛣️ Roadmap
 
+- **🔥 Preview Image Metadata**: Display the metadata associated with preview images.
 - **File Sorting**: Add option to select the type of sorting in the generated browser.
 - **Implement Logging**: Add logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
 ## Additional Information
 
-### Contributing
+### ℹ️ Contributing
 Feel free to open issues or submit pull requests with improvements.
 
 ### License
