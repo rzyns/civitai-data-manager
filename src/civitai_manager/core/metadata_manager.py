@@ -10,7 +10,6 @@ import random
 
 from ..utils.file_tracker import ProcessedFilesManager
 from ..utils.html_generators.model_page import generate_html_summary
-from ..utils.html_generators.browser_page import generate_global_summary
 
 try:
     import requests
@@ -19,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 def get_output_path(clean=False):
     """
@@ -299,19 +298,19 @@ def clean_output_directory(directory_path, base_output_path):
     
     # Check each directory in output
     output_dirs = [d for d in base_output_path.iterdir() if d.is_dir()]
-    cleaned_files = []
+    cleaned_dirs = []
     
     for output_dir in output_dirs:
         if output_dir.name not in existing_models:
             print(f"Removing directory: {output_dir.name} (model not found)")
             try:
                 shutil.rmtree(output_dir)
-                cleaned_files.append(str(output_dir))
+                cleaned_dirs.append(str(output_dir))
             except Exception as e:
                 print(f"Error removing directory {output_dir}: {e}")
     
     # Update processed_files.json
-    if cleaned_files:
+    if cleaned_dirs:
         files_manager = ProcessedFilesManager(base_output_path)
         new_processed_files = [
             f for f in files_manager.processed_files['files']
@@ -320,7 +319,7 @@ def clean_output_directory(directory_path, base_output_path):
         files_manager.processed_files['files'] = new_processed_files
         files_manager.save_processed_files()
         
-        print(f"\nCleaned up {len(cleaned_files)} directories")
+        print(f"\nCleaned up {len(cleaned_dirs)} directories")
     else:
         print("\nNo directories to clean")
     
