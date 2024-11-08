@@ -15,6 +15,17 @@ def generate_global_summary(output_dir, VERSION):
         model_files = list(Path(output_dir).glob('*/*/civitai_model.json')) + \
                       list(Path(output_dir).glob('*/*_civitai_model.json'))
         
+        # Read missing models file
+        missing_models = set()
+        missing_file = Path(output_dir) / 'missing_from_civitai.txt'
+        if missing_file.exists():
+            with open(missing_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip() and not line.startswith('#'):
+                        # Extract filename from the line
+                        filename = line.strip().split(' | ')[-1]
+                        missing_models.add(filename)
+        
         # Dictionary to store models by type
         models_by_type = {}
         
@@ -52,9 +63,33 @@ def generate_global_summary(output_dir, VERSION):
             except:
                 continue
 
-        # Sort each type's models by downloads
+        # Process missing models
+        if missing_models:
+            if 'Missing from Civitai' not in models_by_type:
+                models_by_type['Missing from Civitai'] = []
+            
+            for filename in missing_models:
+                base_name = Path(filename).stem
+                models_by_type['Missing from Civitai'].append({
+                    'name': base_name,
+                    'creator': 'Unknown',
+                    'downloads': 0,
+                    'base_name': base_name,
+                    'html_file': '',
+                    'tags': [],
+                    'baseModel': 'Unknown',
+                    'trainedWords': [],
+                    'createdAt': 'Unknown',
+                    'updatedAt': 'Unknown',
+                    'missing': True
+                })
+
+        # Sort each type's models
         for model_type in models_by_type:
-            models_by_type[model_type].sort(key=lambda x: x['downloads'], reverse=True)
+            if model_type != 'Missing from Civitai':
+                models_by_type[model_type].sort(key=lambda x: x['downloads'], reverse=True)
+            else:
+                models_by_type[model_type].sort(key=lambda x: x['name'].lower())
 
         # Create sections HTML for each type
         type_sections = ''
@@ -66,14 +101,23 @@ def generate_global_summary(output_dir, VERSION):
                 <h2>{model_type} ({len(models)} models)</h2>
                 <div class="models-grid">
                     {''.join(f"""
-                    <div class="model-card" data-tags="{','.join(model['tags']).lower()}">
-                        <h3><a href="{model['base_name']}/{model['html_file']}">{model['name']}</a></h3>
-                        <small class="version-name">{model['version_name']}</small>
+                    <div class="model-card{' missing' if model.get('missing') else ''}" data-tags="{','.join(model['tags']).lower()}">
+                        <h3>{
+                            '<span class="missing-model">' + model['name'] + '</span>' 
+                            if model.get('missing') 
+                            else f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
+                        }</h3>
+                        <small class="version-name">{model.get('version_name', '')}</small>
                         <div>by {model['creator']}</div>
-                        <div class="downloads">Downloads: {model['downloads']:,}</div>
+                        {'<div class="base-model">Base Model: ' + model['baseModel'] + '</div>' if model.get('baseModel', 'Unknown') != 'Unknown' else ''}
+                        {'<div class="downloads">Downloads: ' + f"{model['downloads']:,}" + '</div>' if not model.get('missing') else ''}
+                        {'<div class="dates">Created: ' + model['createdAt'][:10] + 
+                         (' | Updated: ' + model['updatedAt'][:10] if model['updatedAt'] != "Unknown" else '') + 
+                         '</div>' if model.get('createdAt', "Unknown") != "Unknown" else ''}
                         <div class="tags">
                             {''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])}
                         </div>
+                        {'<div class="trained-words">' + ', '.join(model['trainedWords']) + '</div>' if model.get('trainedWords') else ''}
                     </div>
                     """ for model in models)}
                 </div>
@@ -136,6 +180,13 @@ def generate_global_summary(output_dir, VERSION):
         .model-card:hover {{
             transform: translateY(-2px);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .model-card.missing {{
+            background-color: #fff3f3;
+            border: 1px solid #ffcdd2;
+        }}
+        .missing-model {{
+            color: #d32f2f;
         }}
         .downloads {{
             color: #666;
