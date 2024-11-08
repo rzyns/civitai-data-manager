@@ -30,7 +30,9 @@ def main():
                        help='Only process new files that haven\'t been processed before')
     parser.add_argument('--onlyhtml', action='store_true',
                        help='Only generate HTML files from existing JSON data')
-    
+    parser.add_argument('--onlyupdate', action='store_true',
+                       help='Only update previously processed files, skipping hash calculation')
+
     args = parser.parse_args()
     
     # Validate arguments
@@ -39,6 +41,12 @@ def main():
         sys.exit(1)
     if args.onlynew and args.onlyhtml:
         print("Error: Cannot use both --onlynew and --onlyhtml at the same time")
+        sys.exit(1)
+    if args.onlyupdate and args.onlynew:
+        print("Error: Cannot use both --onlyupdate and --onlynew at the same time")
+        sys.exit(1)
+    if args.onlyupdate and args.onlyhtml:
+        print("Error: Cannot use both --onlyupdate and --onlyhtml at the same time")
         sys.exit(1)
     
     # Get base output path either from argument or user input
@@ -62,7 +70,8 @@ def main():
         process_single_file(safetensors_path, base_output_path, 
                           download_all_images=args.images,
                           skip_images=args.noimages,
-                          html_only=args.onlyhtml)
+                          html_only=args.onlyhtml,
+                          only_update=args.onlyupdate)
     else:
         directory_path = Path(args.all)
         process_directory(directory_path, base_output_path, 
@@ -70,7 +79,8 @@ def main():
                         download_all_images=args.images,
                         skip_images=args.noimages,
                         only_new=args.onlynew,
-                        html_only=args.onlyhtml)
+                        html_only=args.onlyhtml,
+                        only_update=args.onlyupdate)
         
     if (args.single or args.all):
         generate_global_summary(base_output_path, VERSION)

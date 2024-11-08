@@ -37,3 +37,8 @@ class ProcessedFilesManager:
         """Get list of new safetensors files that haven't been processed"""
         all_files = list(Path(directory_path).glob('**/*.safetensors'))
         return [f for f in all_files if not self.is_file_processed(f)]
+    
+    def update_timestamp(self):
+        """Update the last_update timestamp without modifying the files list"""
+        self.processed_files['last_update'] = datetime.now().isoformat()
+        self.save_processed_files()

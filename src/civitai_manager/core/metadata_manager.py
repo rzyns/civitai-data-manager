@@ -431,7 +431,8 @@ def check_for_updates(safetensors_path, output_dir, hash_value):
         print(f"Error checking for updates: {str(e)}")
         return True  # If there's any error, proceed with update
 
-def process_single_file(safetensors_path, base_output_path, download_all_images=False, skip_images=False, html_only=False):
+def process_single_file(safetensors_path, base_output_path, download_all_images=False,
+                        skip_images=False, html_only=False, only_update=False):
     """
     Process a single safetensors file
     
@@ -441,7 +442,9 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
         download_all_images (bool): Whether to download all available preview images
         skip_images (bool): Whether to skip downloading images completely
         html_only (bool): Whether to only generate HTML files
+        only_update (bool): Whether to only update existing processed files
     """
+
     if not safetensors_path.exists():
         print(f"Error: File {safetensors_path} not found")
         return False
@@ -473,11 +476,29 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
         generate_html_summary(model_output_dir, safetensors_path, VERSION)
         return True
     
-    # Normal processing mode
-    hash_value = extract_hash(safetensors_path, model_output_dir)
-    if not hash_value:
-        print("Error: Failed to extract hash")
-        return False
+    if only_update:
+        # Check if hash file exists
+        hash_file = model_output_dir / f"{safetensors_path.stem}_hash.json"
+        if not hash_file.exists():
+            print(f"Skipping {safetensors_path.name} (not previously processed)")
+            return False
+            
+        # Read existing hash
+        try:
+            with open(hash_file, 'r') as f:
+                hash_data = json.load(f)
+                hash_value = hash_data.get('hash_value')
+                if not hash_value:
+                    raise ValueError("Invalid hash file")
+        except Exception as e:
+            print(f"Error reading hash file: {e}")
+            return False
+    else:
+        # Normal processing mode
+        hash_value = extract_hash(safetensors_path, model_output_dir)
+        if not hash_value:
+            print("Error: Failed to extract hash")
+            return False
     
     # Check if update is needed
     if not check_for_updates(safetensors_path, model_output_dir, hash_value):
@@ -485,7 +506,7 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
         return True
     
     # Process the file
-    if extract_metadata(safetensors_path, model_output_dir):
+    if only_update or extract_metadata(safetensors_path, model_output_dir):
         model_id = fetch_version_data(hash_value, model_output_dir, base_output_path, 
                                     safetensors_path, download_all_images, skip_images)
         if model_id:
@@ -497,7 +518,7 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
 
 def process_directory(directory_path, base_output_path, no_timeout=False, 
                      download_all_images=False, skip_images=False, only_new=False, 
-                     html_only=False):
+                     html_only=False, only_update=False):
     """
     Process all safetensors files in a directory
             
@@ -509,7 +530,9 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
         skip_images (bool): Whether to skip downloading images completely
         only_new (bool): Whether to only process new models
         html_only (bool): Whether to only generate HTML files
+        only_update (bool): Whether to only update existing processed files
     """
+
     if not directory_path.exists():
         print(f"Error: Directory {directory_path} not found")
         return False
@@ -524,6 +547,15 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
             print("No new files to process")
             return True
         print(f"\nFound {len(safetensors_files)} new .safetensors files")
+    elif only_update:
+        # Only get previously processed files
+        safetensors_files = []
+        all_files = list(directory_path.glob('**/*.safetensors'))
+        for file_path in all_files:
+            hash_file = Path(base_output_path) / file_path.stem / f"{file_path.stem}_hash.json"
+            if hash_file.exists():
+                safetensors_files.append(file_path)
+        print(f"\nFound {len(safetensors_files)} previously processed files")
     else:
         safetensors_files = list(directory_path.glob('**/*.safetensors'))
         if not safetensors_files:
@@ -538,11 +570,15 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
     for i, file_path in enumerate(safetensors_files, 1):
         print(f"\n[{i}/{len(safetensors_files)}] Processing: {file_path.relative_to(directory_path)}")
         success = process_single_file(file_path, base_output_path, 
-                                    download_all_images, skip_images, html_only)
+                                    download_all_images, skip_images, html_only, only_update)
         
-        if success and not html_only:
-            files_manager.add_processed_file(file_path)
+        if success:
             files_processed += 1
+            if not html_only:
+                if not only_update:
+                    files_manager.add_processed_file(file_path)
+                else:
+                    files_manager.update_timestamp()            
         
         # Add timeout between files (except for the last file) if not in HTML only mode
         if not html_only and not no_timeout and i < len(safetensors_files):
@@ -552,7 +588,7 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
             time.sleep(timeout)
     
     # Save the updated processed files list if not in HTML only mode
-    if not html_only:
+    if not (html_only or only_update):
         files_manager.save_processed_files()
 
     return True
