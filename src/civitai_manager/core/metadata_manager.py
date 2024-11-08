@@ -19,7 +19,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.0.5"
+VERSION = "1.1.0"
 
 def get_output_path(clean=False):
     """

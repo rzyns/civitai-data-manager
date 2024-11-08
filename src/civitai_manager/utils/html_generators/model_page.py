@@ -289,7 +289,9 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             <div class="menu"><a href="../models_manager.html">Civitai Data Manager</a></div>
             <h1>{model_data.get('name', 'Model Name')}</h1>
             <div><em>{version_data.get('name', 'Version Name')}</em></div>
-            <div>by <strong><a href="https://civitai.com/user/{model_data.get('creator', {}).get('username', 'Unknown Creator')}" target="_blank">{model_data.get('creator', {}).get('username', 'Unknown Creator')}</a></strong></div>
+            <div>by <strong>
+                {'<a href="https://civitai.com/user/' + model_data.get('creator', {}).get('username', 'Unknown Creator') + '" target="_blank">' + model_data.get('creator', {}).get('username', 'Unknown Creator') + '</a>' if model_data.get('creator', {}).get('username', 'Unknown Creator') != 'Unknown Creator' else model_data.get('creator', {}).get('username', 'Unknown Creator')}
+            </strong></div>
         </div>
 
         {gallery_html}
