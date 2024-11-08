@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import sys
 import hashlib
+import shutil
 from datetime import datetime
 import time
 import random
@@ -20,7 +21,7 @@ except ImportError:
 
 VERSION = "1.0.5"
 
-def get_output_path():
+def get_output_path(clean=False):
     """
     Get output path from user and create necessary directories.
     If no path is provided (empty input), use current directory.
@@ -29,7 +30,10 @@ def get_output_path():
         Path: Base output directory path
     """
     while True:
-        output_path = input("Enter the path where you want to save the exported files (press Enter for current directory): ").strip()
+        if clean:
+            output_path = input("Enter the path you want to clean (press Enter for current directory): ").strip()
+        else:
+            output_path = input("Enter the path where you want to save the exported files (press Enter for current directory): ").strip()
         
         # Use current directory if input is empty
         if not output_path:
@@ -276,6 +280,51 @@ def update_missing_files_list(base_path, safetensors_path, status_code):
         missing_file.unlink()
         print("\nAll models are now available on Civitai. Removed missing_from_civitai.txt")
 
+def clean_output_directory(directory_path, base_output_path):
+    """
+    Clean up output directory by removing data for models that no longer exist
+    
+    Args:
+        directory_path (Path): Directory containing the safetensors files
+        base_output_path (Path): Base output directory path
+    """
+
+    print("\nStarting cleanup process...")
+    
+    # Get list of all current safetensors files (without extension)
+    existing_models = {
+        Path(file).stem
+        for file in Path(directory_path).glob('**/*.safetensors')
+    }
+    
+    # Check each directory in output
+    output_dirs = [d for d in base_output_path.iterdir() if d.is_dir()]
+    cleaned_files = []
+    
+    for output_dir in output_dirs:
+        if output_dir.name not in existing_models:
+            print(f"Removing directory: {output_dir.name} (model not found)")
+            try:
+                shutil.rmtree(output_dir)
+                cleaned_files.append(str(output_dir))
+            except Exception as e:
+                print(f"Error removing directory {output_dir}: {e}")
+    
+    # Update processed_files.json
+    if cleaned_files:
+        files_manager = ProcessedFilesManager(base_output_path)
+        new_processed_files = [
+            f for f in files_manager.processed_files['files']
+            if Path(f).stem in existing_models
+        ]
+        files_manager.processed_files['files'] = new_processed_files
+        files_manager.save_processed_files()
+        
+        print(f"\nCleaned up {len(cleaned_files)} directories")
+    else:
+        print("\nNo directories to clean")
+    
+    return True
 
 def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, download_all_images=False, skip_images=False):
     """

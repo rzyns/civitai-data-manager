@@ -8,6 +8,7 @@ from src.civitai_manager.core.metadata_manager import (
     VERSION,
     process_single_file,
     process_directory,
+    clean_output_directory,
     get_output_path
 )
 from src.civitai_manager.utils.html_generators.browser_page import generate_global_summary
@@ -32,6 +33,8 @@ def main():
                        help='Only generate HTML files from existing JSON data')
     parser.add_argument('--onlyupdate', action='store_true',
                        help='Only update previously processed files, skipping hash calculation')
+    parser.add_argument('--clean', action='store_true',
+                    help='Remove data for models that no longer exist in the target directory')
 
     args = parser.parse_args()
     
@@ -48,6 +51,12 @@ def main():
     if args.onlyupdate and args.onlyhtml:
         print("Error: Cannot use both --onlyupdate and --onlyhtml at the same time")
         sys.exit(1)
+    if args.clean and args.single:
+        print("Error: --clean option can only be used with --all")
+        sys.exit(1)
+    if args.clean and (args.onlyhtml or args.onlyupdate or args.onlynew):
+        print("Error: --clean cannot be used with --onlyhtml, --onlyupdate, or --onlynew")
+        sys.exit(1)
     
     # Get base output path either from argument or user input
     if args.output:
@@ -63,7 +72,7 @@ def main():
             print(f"Error: No write permission for directory {base_output_path}")
             sys.exit(1)
     else:
-        base_output_path = get_output_path()
+        base_output_path = get_output_path(clean=args.clean)
     
     if args.single:
         safetensors_path = Path(args.single)
@@ -74,13 +83,16 @@ def main():
                           only_update=args.onlyupdate)
     else:
         directory_path = Path(args.all)
-        process_directory(directory_path, base_output_path, 
-                        args.notimeout,
-                        download_all_images=args.images,
-                        skip_images=args.noimages,
-                        only_new=args.onlynew,
-                        html_only=args.onlyhtml,
-                        only_update=args.onlyupdate)
+        if args.clean:
+            clean_output_directory(directory_path, base_output_path)
+        else:
+            process_directory(directory_path, base_output_path, 
+                            args.notimeout,
+                            download_all_images=args.images,
+                            skip_images=args.noimages,
+                            only_new=args.onlynew,
+                            html_only=args.onlyhtml,
+                            only_update=args.onlyupdate)
         
     if (args.single or args.all):
         generate_global_summary(base_output_path, VERSION)
