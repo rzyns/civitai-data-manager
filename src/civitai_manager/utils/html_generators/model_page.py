@@ -286,7 +286,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 <body>
     <div class="container">
         <div class="header">
-            <div class="menu"><a href="../models_manager.html">Civitai Metadata Manager</a></div>
+            <div class="menu"><a href="../models_manager.html">Civitai Data Manager</a></div>
             <h1>{model_data.get('name', 'Model Name')}</h1>
             <div><em>{version_data.get('name', 'Version Name')}</em></div>
             <div>by <strong><a href="https://civitai.com/user/{model_data.get('creator', {}).get('username', 'Unknown Creator')}" target="_blank">{model_data.get('creator', {}).get('username', 'Unknown Creator')}</a></strong></div>
@@ -391,7 +391,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
     </div>
     
     <div class="footer">
-        Civitai Metadata Manager. Version {VERSION}. <a href="https://github.com/jeremysltn/civitai-metadata-manager">GitHub</a>
+        Civitai Data Manager. Version {VERSION}. <a href="https://github.com/jeremysltn/civitai-data-manager">GitHub</a>
         <br />
         Generated: {datetime.now().isoformat()}
     </div>

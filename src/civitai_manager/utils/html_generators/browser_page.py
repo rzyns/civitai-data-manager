@@ -131,7 +131,7 @@ def generate_global_summary(output_dir, VERSION):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Civitai Metadata Manager</title>
+    <title>Civitai Data Manager</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -232,7 +232,7 @@ def generate_global_summary(output_dir, VERSION):
 <body>
     <div class="container">
         <div class="search-container">
-            <h1>Civitai Metadata Manager</h1>
+            <h1>Civitai Data Manager</h1>
             <br />
             <h2>({total_models} models)</h2>
 
@@ -242,7 +242,7 @@ def generate_global_summary(output_dir, VERSION):
     </div>
 
     <div class="footer">
-        Civitai Metadata Manager. Version {VERSION}. <a href="https://github.com/jeremysltn/civitai-metadata-manager">GitHub</a>
+        Civitai Data Manager. Version {VERSION}. <a href="https://github.com/jeremysltn/civitai-data-manager">GitHub</a>
         <br />
         Generated: {datetime.now().isoformat()}
     </div>
