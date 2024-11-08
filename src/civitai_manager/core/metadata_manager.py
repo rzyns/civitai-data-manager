@@ -331,7 +331,7 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
     except Exception as e:
         print(f"Error fetching version data: {str(e)}")
         # Update missing files list for connection errors
-        update_missing_files_list(base_path, safetensors_path, 0)  # Use 0 for connection errors
+        # update_missing_files_list(base_path, safetensors_path, 0)  # Use 0 for connection errors
         return None
 
 def fetch_model_details(model_id, output_dir, safetensors_path):
