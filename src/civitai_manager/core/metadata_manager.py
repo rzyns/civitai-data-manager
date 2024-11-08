@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 def get_output_path():
     """
@@ -243,30 +243,39 @@ def update_missing_files_list(base_path, safetensors_path, status_code):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Read existing entries if file exists, skipping header lines
-    existing_entries = set()
+    entries = []
     if missing_file.exists():
         with open(missing_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            for line in lines:
+            for line in f:
                 line = line.strip()
-                # Skip empty lines and header lines
                 if line and not line.startswith('#'):
-                    existing_entries.add(line)
+                    # Extract filename from the entry
+                    filename = line.split(' | ')[-1]
+                    # Keep entries for other files
+                    if filename != safetensors_path.name:
+                        entries.append(line)
     
-    # Add new entry with timestamp and status code
-    new_entry = f"{timestamp} | Status {status_code} | {safetensors_path.name}"
-    existing_entries.add(new_entry)
+    # Add new entry if file is missing
+    if status_code is not None:
+        new_entry = f"{timestamp} | Status {status_code} | {safetensors_path.name}"
+        entries.append(new_entry)
     
-    # Write updated list with headers only at the top
-    with open(missing_file, 'w', encoding='utf-8') as f:
-        # Write headers
-        f.write("# Files not found on Civitai\n")
-        f.write("# Format: Timestamp | Status Code | Filename\n")
-        f.write("# This file is automatically updated when the script runs\n\n")
-        
-        # Write entries sorted by timestamp (newest first)
-        for entry in sorted(existing_entries, reverse=True):
-            f.write(f"{entry}\n")
+    if entries:
+        # Write updated list with headers
+        with open(missing_file, 'w', encoding='utf-8') as f:
+            f.write("# Files not found on Civitai\n")
+            f.write("# Format: Timestamp | Status Code | Filename\n")
+            f.write("# This file is automatically updated when the script runs\n")
+            f.write("# A file is removed from this list when it becomes available again\n\n")
+            
+            # Write entries sorted by timestamp (newest first)
+            for entry in sorted(entries, reverse=True):
+                f.write(f"{entry}\n")
+    elif missing_file.exists():
+        # Delete the file if there are no entries
+        missing_file.unlink()
+        print("\nAll models are now available on Civitai. Removed missing_from_civitai.txt")
+
 
 def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, download_all_images=False, skip_images=False):
     """
@@ -296,6 +305,9 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
                 response_data = response.json()
                 json.dump(response_data, f, indent=4)
                 print(f"Version data successfully saved to {civitai_path}")
+
+                # Remove from missing files list if it was there before
+                update_missing_files_list(base_path, safetensors_path, None)  # Pass None to indicate file is back
                 
                 # Handle image downloads based on flags
                 if not skip_images and 'images' in response_data and response_data['images']:
