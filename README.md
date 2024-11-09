@@ -272,4 +272,4 @@ Feel free to open issues or submit pull requests with improvements.
 [MIT License](LICENSE.md)
 
 ### Acknowledgments
-This tool uses the [Civitai API](https://github.com/civitai/civitai/wiki/REST-API-Reference).
+In accordance with Civitai's Terms of Service, this tool adheres to the restriction of not accessing, searching, or utilizing any part of the service through unauthorized engines, software, or tools. It only uses the search agents provided by Civitai through their official open [API](https://github.com/civitai/civitai/wiki/REST-API-Reference), ensuring full compliance with the terms.
