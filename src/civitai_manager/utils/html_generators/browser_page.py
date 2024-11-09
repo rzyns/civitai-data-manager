@@ -96,32 +96,59 @@ def generate_global_summary(output_dir, VERSION):
         total_models = sum(len(models) for models in models_by_type.values())
         
         for model_type, models in sorted(models_by_type.items()):
-            type_sections += f"""
-            <div class="type-section" data-type="{model_type.lower()}">
-                <h2>{model_type} ({len(models)} models)</h2>
-                <div class="models-grid">
-                    {''.join(f"""
+            # Create model cards first
+            model_cards = []
+            for model in models:
+                model_name = (
+                    '<span class="missing-model">' + model['name'] + '</span>'
+                    if model.get('missing')
+                    else f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
+                )
+                
+                dates_section = ''
+                if model.get('createdAt', "Unknown") != "Unknown":
+                    created_date = model['createdAt'][:10]
+                    updated_date = f" | Updated: {model['updatedAt'][:10]}" if model['updatedAt'] != "Unknown" else ''
+                    dates_section = f'<div class="dates">Created: {created_date}{updated_date}</div>'
+                
+                base_model_section = ''
+                if model.get('baseModel', 'Unknown') != 'Unknown':
+                    base_model_section = f'<div class="base-model">Base Model: {model["baseModel"]}</div>'
+                
+                downloads_section = ''
+                if not model.get('missing'):
+                    downloads_section = f'<div class="downloads">Downloads: {model["downloads"]:,}</div>'
+                
+                trained_words_section = ''
+                if model.get('trainedWords'):
+                    trained_words_section = f'<div class="trained-words">{", ".join(model["trainedWords"])}</div>'
+                
+                tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
+                
+                card_html = f"""
                     <div class="model-card{' missing' if model.get('missing') else ''}" data-tags="{','.join(model['tags']).lower()}">
-                        <h3>{
-                            '<span class="missing-model">' + model['name'] + '</span>' 
-                            if model.get('missing') 
-                            else f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
-                        }</h3>
+                        <h3>{model_name}</h3>
                         <small class="version-name">{model.get('version_name', '')}</small>
                         <div>by {model['creator']}</div>
-                        {'<div class="base-model">Base Model: ' + model['baseModel'] + '</div>' if model.get('baseModel', 'Unknown') != 'Unknown' else ''}
-                        {'<div class="downloads">Downloads: ' + f"{model['downloads']:,}" + '</div>' if not model.get('missing') else ''}
-                        {'<div class="dates">Created: ' + model['createdAt'][:10] + 
-                         (' | Updated: ' + model['updatedAt'][:10] if model['updatedAt'] != "Unknown" else '') + 
-                         '</div>' if model.get('createdAt', "Unknown") != "Unknown" else ''}
+                        {base_model_section}
+                        {downloads_section}
+                        {dates_section}
                         <div class="tags">
-                            {''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])}
+                            {tags_html}
                         </div>
-                        {'<div class="trained-words">' + ', '.join(model['trainedWords']) + '</div>' if model.get('trainedWords') else ''}
+                        {trained_words_section}
                     </div>
-                    """ for model in models)}
+                """
+                model_cards.append(card_html)
+
+            # Create section with all model cards
+            type_sections += f"""
+                <div class="type-section" data-type="{model_type.lower()}">
+                    <h2>{model_type} ({len(models)} models)</h2>
+                    <div class="models-grid">
+                        {''.join(model_cards)}
+                    </div>
                 </div>
-            </div>
             """
 
         # Update the HTML content with type sections
