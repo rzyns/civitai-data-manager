@@ -1,6 +1,7 @@
 # Civitai Data Manager
 
 - [Overview](#-overview)
+- [Demo](#-demo)
 - [Key Benefits](#-key-benefits)
 - [Model Compatibility](#-model-compatibility)
 - [Getting Started](#-getting-started)
@@ -31,6 +32,12 @@
 A Python script that fetches and saves metadata, description, tags, hashes, and preview images for SafeTensors model files by querying the Civitai API.
 
 It generates JSON files for data storage and interactive HTML pages for easy browsing. The script is especially useful for maintaining model information (trigger words, usage notes, authors) even after models might be removed from Civitai. By creating a local backup of crucial model data, you can ensure your collection remains well-documented and easily accessible regardless of the models' availability online.
+
+## 🖥️ Demo
+
+![Civitai Data Manager Demo](https://i.imgur.com/jKXxX4S.gif)
+
+<div style="text-align:center;"><a href="https://win3ry.com/projects/civitai/">Demo</a></div>
 
 ## ✨ Key Benefits
 
@@ -249,16 +256,16 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 🛣️ Roadmap
 
-- **🔥 Preview Image Metadata**: Display the metadata associated with preview images.
+- **🔥 Preview Image Metadata**: Display the metadata associated with preview images (seed, prompt, guiande...).
 - **🐛 Fix Video in Preview Images**: Handle the videos in preview images.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
 - **Filters**: Add option to filter models by Author or Base Model.
 - **Implement Logging**: Add logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
-## Additional Information
+## 📘 Additional Information
 
-### ℹ️ Contributing
+### Contributing
 Feel free to open issues or submit pull requests with improvements.
 
 ### License
