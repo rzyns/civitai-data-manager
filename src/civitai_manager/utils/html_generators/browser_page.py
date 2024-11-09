@@ -311,7 +311,7 @@ def generate_global_summary(output_dir, VERSION):
 """
 
         # Write the summary file
-        summary_path = Path(output_dir) / 'models_manager.html'
+        summary_path = Path(output_dir) / 'index.html'
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         

@@ -286,7 +286,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 <body>
     <div class="container">
         <div class="header">
-            <div class="menu"><a href="../models_manager.html">Civitai Data Manager</a></div>
+            <div class="menu"><a href="../index.html">Civitai Data Manager</a></div>
             <h1>{model_data.get('name', 'Model Name')}</h1>
             <div><em>{version_data.get('name', 'Version Name')}</em></div>
             <div>by <strong>

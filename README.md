@@ -158,8 +158,10 @@ python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux"
 
 ### Best Practices
 
-- The first time, run with the options `--all` and `--images`
-- Then, run periodically to catch updates with `--onlynew`
+- The first time, run:
+  ```bash
+  python main.py --all "path/to/directory" --images
+- Then, run periodically to catch updates with `--onlynew --images`
 - If you want to update only the Civitai data, use `--onlyupdate --noimages`
 - Just in case, always back up the generated data directory with your models
 - Monitor `missing_from_civitai.txt` for manual documentation needs
@@ -178,7 +180,7 @@ output_directory/
 │   ├── model_name_preview_0.jpg              # First preview image
 │   ├── model_name_preview_x.jpg              # Additional preview images (if --images used)
 │   └── model_name.html                       # Model-specific HTML page
-├── models_manager.html                       # Model browser
+├── index.html                                # Model browser
 ├── missing_from_civitai.txt                  # List of models not found on Civitai
 └── processed_files.json                      # List of processed files
 ```
@@ -243,7 +245,7 @@ If the Lora model has been deleted from Civitai, the script can still generate a
 
 ### How does this tool compare to other models or Civitai managers?
 
-This tool stands out for its simplicity and lightweight design. It requires no configuration and operates independently of any WebUI (such as A1111, ComfyUI, etc.). With a single command, it scans your models directory, gathers informations on Civitai, and generates a `models_manager.html` file.
+This tool stands out for its simplicity and lightweight design. It requires no configuration and operates independently of any WebUI (such as A1111, ComfyUI, etc.). With a single command, it scans your models directory, gathers informations on Civitai, and generates an interactive model browser (`index.html`).
 
 ## 🛣️ Roadmap
 
