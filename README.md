@@ -128,9 +128,9 @@ python main.py --all "path/to/your/models/directory"
 
 - `--generateimagejson`: Generate JSON files for all preview images from existing model version data
   ```bash
-  python main.py --all "path/to/directory" --generateimagejson
+  python main.py --all "" --output "path/to/directory" --generateimagejson
   ```
-  This option is only useful for data generated before script version 1.3.0
+  This option is implemented only for data generated before script version 1.3.0
 
 - `--noimages`: Disable downloading of preview images
   ```bash
@@ -146,7 +146,7 @@ python main.py --all "path/to/your/models/directory"
   ```bash
   python main.py --all "path/to/directory" --onlynew --skipmissing
   ```
-If this flag is not provided, the script will always check for previously missing models.
+  If this flag is not provided, the script will always check for previously missing models.
 
 - `--onlyupdate`: Only update metadata for processed models
   ```bash
@@ -286,6 +286,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 🛣️ Roadmap
 
+- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
