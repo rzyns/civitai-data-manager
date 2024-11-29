@@ -266,15 +266,6 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             overflow: hidden;
             background-color: #f8f9fa;
         }}
-        .gallery-item video {{
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            cursor: pointer;
-        }}
         .gallery-item img {{
             position: absolute;
             top: 0;
@@ -285,6 +276,18 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             transition: transform 0.3s ease;
         }}
         .gallery-item:hover img {{
+            transform: scale(1.05);
+        }}
+        .gallery-item video {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }}
+        .gallery-item:hover video {{
             transform: scale(1.05);
         }}
         

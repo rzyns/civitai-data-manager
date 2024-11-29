@@ -142,7 +142,7 @@ python main.py --all "path/to/your/models/directory"
   python main.py --all "path/to/directory" --onlynew
   ```
 
-- `--skipmissing`: Skip previously missing models when used with --onlynew
+- `--skipmissing`: Skip previously missing models when used with `--onlynew`
   ```bash
   python main.py --all "path/to/directory" --onlynew --skipmissing
   ```
@@ -287,6 +287,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 ## 🛣️ Roadmap
 
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
+- **Lightbox Improvement**: Add keyboard navigation between images.
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
