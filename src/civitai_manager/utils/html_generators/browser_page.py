@@ -229,10 +229,10 @@ def generate_global_summary(output_dir, VERSION):
         .model-cover {{
             display: none; /* Hidden by default */
             width: 100%;
-            height: 200px;
+            height: 400px;
             object-fit: cover;
             object-position: top;
-            border-radius: 8px 8px 0 0;
+            border-radius: 8px;
             margin-bottom: 15px;
         }}
         .show-covers .model-cover {{

@@ -298,6 +298,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+### [1.3.3]
+- refactor: Increase model's thumbnail size in the model browser
+
 ### [1.3.2]
 - fix: Handle duplicate file message in clean operation
 

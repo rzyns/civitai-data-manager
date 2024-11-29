@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 
 def get_output_path(clean=False):
     """
