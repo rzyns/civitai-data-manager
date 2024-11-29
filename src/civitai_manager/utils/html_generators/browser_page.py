@@ -132,7 +132,10 @@ def generate_global_summary(output_dir, VERSION):
                 tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
                 
                 card_html = f"""
-                    <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" data-tags="{','.join(model['tags']).lower()}">
+                    <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" 
+                    data-tags="{','.join(model['tags']).lower()}"
+                    data-name="{model['name'].lower()}"
+                    data-filename="{model['base_name'].lower()}">
                         <img class="model-cover" src="{model['base_name']}/{model['base_name']}_preview_0.jpeg" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
                         <h3>{model_name}</h3>
                         <small class="version-name">{model.get('version_name', '')}</small>
@@ -301,7 +304,7 @@ def generate_global_summary(output_dir, VERSION):
             <br />
             <h2>({total_models} models)</h2>
 
-            <input type="text" class="search-box" id="searchBox" placeholder="Search by tags (comma separated)...">
+            <input type="text" class="search-box" id="searchBox" placeholder="Search by name, filename, or tags (comma separated)...">
             <div class="view-options">
                 <button id="toggleCovers" class="toggle-button">Show Covers</button>
             </div>
@@ -320,17 +323,25 @@ def generate_global_summary(output_dir, VERSION):
         const searchBox = document.getElementById('searchBox');
         const modelCards = document.querySelectorAll('.model-card');
         searchBox.addEventListener('input', function() {{
-            const searchTags = searchBox.value.toLowerCase().split(',').map(tag => tag.trim()).filter(tag => tag);
+            const searchTerms = searchBox.value.toLowerCase().split(',').map(term => term.trim()).filter(term => term);
             
             modelCards.forEach(card => {{
-                if (!searchTags.length) {{
+                if (!searchTerms.length) {{
                     card.classList.remove('hidden');
                     return;
                 }}
                 
                 const cardTags = card.dataset.tags.split(',');
-                const matchesSearch = searchTags.every(searchTag => 
-                    cardTags.some(cardTag => cardTag.includes(searchTag))
+                const cardName = card.dataset.name;
+                const cardFilename = card.dataset.filename;
+                
+                const matchesSearch = searchTerms.every(searchTerm => 
+                    // Check tags
+                    cardTags.some(cardTag => cardTag.includes(searchTerm)) ||
+                    // Check model name
+                    cardName.includes(searchTerm) ||
+                    // Check filename
+                    cardFilename.includes(searchTerm)
                 );
                 
                 if (matchesSearch) {{

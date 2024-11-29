@@ -264,7 +264,6 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 - **🔥 Preview Image Metadata**: Display the metadata associated with preview images (seed, prompt, guiande...).
 - **Dark Mode**: Integrate dark mode in the templates.
-- **Improve Search**: Make the search to include file names.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
 - **Filters**: Add option to filter models by Author or Base Model.
 - **Implement Logging**: Add logging functionality to improve tracking and debugging.
