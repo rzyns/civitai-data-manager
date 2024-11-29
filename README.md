@@ -135,6 +135,12 @@ python main.py --all "path/to/your/models/directory"
   python main.py --all "path/to/directory" --onlynew
   ```
 
+- `--skipmissing`: Skip previously missing models when used with --onlynew
+  ```bash
+  python main.py --all "path/to/directory" --onlynew --skipmissing
+  ```
+If this flag is not provided, the script will always check for previously missing models.
+
 - `--onlyupdate`: Only update metadata for processed models
   ```bash
   python main.py --all "path/to/directory" --onlyupdate

@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 def get_output_path(clean=False):
     """
@@ -581,7 +581,7 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
 
 def process_directory(directory_path, base_output_path, no_timeout=False, 
                      download_all_images=False, skip_images=False, only_new=False, 
-                     html_only=False, only_update=False):
+                     html_only=False, only_update=False, skip_missing=False):
     """
     Process all safetensors files in a directory
             
@@ -609,6 +609,27 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
         if not safetensors_files:
             print("No new files to process")
             return True
+        
+        if skip_missing:
+            # Read missing models file
+            missing_file = Path(base_output_path) / 'missing_from_civitai.txt'
+            missing_models = set()
+            if missing_file.exists():
+                with open(missing_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.strip() and not line.startswith('#'):
+                            filename = line.strip().split(' | ')[-1]
+                            missing_models.add(filename)
+                            
+            # Filter out previously missing models
+            safetensors_files = [
+                f for f in safetensors_files 
+                if f.name not in missing_models
+            ]
+            if not safetensors_files:
+                print("No new non-missing files to process")
+                return True
+
         print(f"\nFound {len(safetensors_files)} new .safetensors files")
     elif only_update:
         # Only get previously processed files

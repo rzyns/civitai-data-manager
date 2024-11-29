@@ -29,6 +29,8 @@ def main():
                        help='Skip downloading any preview images')
     parser.add_argument('--onlynew', action='store_true',
                        help='Only process new files that haven\'t been processed before')
+    parser.add_argument('--skipmissing', action='store_true',
+                    help='Skip previously missing models when used with --onlynew')
     parser.add_argument('--onlyhtml', action='store_true',
                        help='Only generate HTML files from existing JSON data')
     parser.add_argument('--onlyupdate', action='store_true',
@@ -92,7 +94,8 @@ def main():
                             skip_images=args.noimages,
                             only_new=args.onlynew,
                             html_only=args.onlyhtml,
-                            only_update=args.onlyupdate)
+                            only_update=args.onlyupdate,
+                            skip_missing=args.skipmissing)
         
     if (args.single or args.all):
         generate_global_summary(base_output_path, VERSION)
