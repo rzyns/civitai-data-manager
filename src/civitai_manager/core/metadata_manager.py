@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 
 def get_output_path(clean=False):
     """
@@ -398,6 +398,8 @@ def clean_output_directory(directory_path, base_output_path):
 
     # First handle duplicates
     duplicates = find_duplicate_models(directory_path, base_output_path)
+    duplicate_file = None
+    
     if duplicates:
         duplicate_file = base_output_path / "duplicate_models.txt"
         with open(duplicate_file, 'w', encoding='utf-8') as f:
@@ -430,7 +432,9 @@ def clean_output_directory(directory_path, base_output_path):
                         print(f"Error removing directory {model['model_dir']}: {e}")
                 f.write("\n")    
  
-    print(f"\nDuplicate models list saved to {duplicate_file}")
+        print(f"\nDuplicate models list saved to {duplicate_file}")
+    else:
+        print("\nNo duplicates to remove")
 
     print("\nStarting cleanup process (removed models)...")
     # Then handle missing models

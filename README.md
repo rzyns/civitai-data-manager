@@ -287,6 +287,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 ## 🛣️ Roadmap
 
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
+- **Special Model Names**: Fix the link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 - **Lightbox Improvement**: Add keyboard navigation between images.
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Reponsive**: Make the templates responsive.
@@ -297,32 +298,31 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
-### [1.3.0]
+### [1.3.2]
+- fix: Handle duplicate file message in clean operation
 
+### [1.3.1]
+- fix: The scale effect in the model's gallery now affects videos
+
+### [1.3.0]
 - 🔥 feat: Enhance image modal with detailed metadata display (seed, prompt used etc.)
 
 ### [1.2.5]
-
 - 🔥 feat: Enhance model browser search functionality
 
 ### [1.2.4]
-
 - feat: Enhance --clean to detect and handle duplicate models
 
 ### [1.2.3]
-
 - feat: Add toggleable cover images to model browser
 
 ### [1.2.2]
-
 - feat: Add --skipmissing option for optimizing model checks
 
 ### [1.2.1]
-
 - fix: Prevent missing models from appearing in multiple sections
 
 ### [1.2.0]
-
 - feat: Add video preview support for model galleries
 
 ## 📘 Additional Information
