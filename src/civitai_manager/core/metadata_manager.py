@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.1.3"
+VERSION = "1.2.0"
 
 def get_output_path(clean=False):
     """
@@ -183,7 +183,7 @@ def extract_hash(file_path, output_dir):
         print(f"Error: {str(e)}")
         return None
     
-def download_preview_image(image_url, output_dir, base_name, index=None):
+def download_preview_image(image_url, output_dir, base_name, index=None, is_video=False):
     """
     Download a preview image from Civitai
     
@@ -212,7 +212,7 @@ def download_preview_image(image_url, output_dir, base_name, index=None):
         if response.status_code == 200:
             # Get the extension from the URL
             # image_name = url_parts[-1]
-            ext = Path(url_parts[-1]).suffix
+            ext = '.mp4' if is_video else Path(url_parts[-1]).suffix
             # Add index to filename if provided
             image_filename = f"{base_name}_preview{f'_{index}' if index is not None else ''}{ext}"
             image_path = output_dir / image_filename
@@ -363,14 +363,17 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
                         print(f"\nDownloading all preview images ({len(response_data['images'])} images found)")
                         for i, image_data in enumerate(response_data['images']):
                             if 'url' in image_data:
-                                download_preview_image(image_data['url'], output_dir, base_name, i)
+                                is_video = image_data.get('type') == 'video'
+                                download_preview_image(image_data['url'], output_dir, base_name, i, is_video)
                                 # Add a small delay between downloads to be nice to the server
                                 if i < len(response_data['images']) - 1:
                                     time.sleep(1)
                     else:
                         # Download only the first image
                         if 'url' in response_data['images'][0]:
-                            download_preview_image(response_data['images'][0]['url'], output_dir, base_name, 0)
+                            is_video = response_data['images'][0].get('type') == 'video'
+                            download_preview_image(response_data['images'][0]['url'], output_dir, base_name, 0, is_video)
+
                 
                 # Return modelId if it exists
                 return response_data.get('modelId')

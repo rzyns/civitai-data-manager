@@ -19,8 +19,10 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         
         # Find all preview images
         preview_images = sorted(output_dir.glob(f"{base_name}_preview*.jpg")) + \
-                         sorted(output_dir.glob(f"{base_name}_preview*.jpeg")) + \
-                         sorted(output_dir.glob(f"{base_name}_preview*.png"))
+                        sorted(output_dir.glob(f"{base_name}_preview*.jpeg")) + \
+                        sorted(output_dir.glob(f"{base_name}_preview*.png")) + \
+                        sorted(output_dir.glob(f"{base_name}_preview*.mp4"))
+
         
         # Check if all required files exist
         if not all(p.exists() for p in [model_path, version_path, hash_path]):
@@ -50,11 +52,21 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 """
                 for i, img_path in enumerate(preview_images):
                     relative_path = img_path.name
-                    gallery_html += f"""
-                        <div class="gallery-item" onclick="openModal('{relative_path}')">
-                            <img src="{relative_path}" alt="Preview {i+1}">
-                        </div>
-                    """
+                    if str(img_path).endswith('.mp4'):
+                        gallery_html += f"""
+                            <div class="gallery-item" onclick="openModal('{relative_path}', true)">
+                                <video>
+                                    <source src="{relative_path}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        """
+                    else:
+                        gallery_html += f"""
+                            <div class="gallery-item" onclick="openModal('{relative_path}', false)">
+                                <img src="{relative_path}" alt="Preview {i+1}">
+                            </div>
+                        """
                 gallery_html += "</div></div>"
                 
             # CSS helpers
@@ -240,6 +252,15 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             overflow: hidden;
             background-color: #f8f9fa;
         }}
+        .gallery-item video {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }}
         .gallery-item img {{
             position: absolute;
             top: 0;
@@ -401,19 +422,39 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
     <!-- Modal for full-size images -->
     <div id="imageModal" class="modal" onclick="closeModal()">
         <span class="modal-close">&times;</span>
-        <img class="modal-content" id="modalImage">
+        <img class="modal-content" id="modalImage" style="display: none;">
+        <video class="modal-content" id="modalVideo" controls style="display: none;">
+            <source src="" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
     </div>
 
     <script>
-        function openModal(imagePath) {{
+        function openModal(mediaPath, isVideo) {{
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
+            const modalVideo = document.getElementById('modalVideo');
+            
             modal.style.display = "block";
-            modalImg.src = imagePath;
+            
+            if (isVideo) {{
+                modalImg.style.display = "none";
+                modalVideo.style.display = "block";
+                modalVideo.src = mediaPath;
+                modalVideo.play();
+            }} else {{
+                modalImg.style.display = "block";
+                modalVideo.style.display = "none";
+                modalImg.src = mediaPath;
+            }}
         }}
 
         function closeModal() {{
-            document.getElementById('imageModal').style.display = "none";
+            const modal = document.getElementById('imageModal');
+            const modalVideo = document.getElementById('modalVideo');
+            modal.style.display = "none";
+            modalVideo.pause();
+            modalVideo.currentTime = 0;
         }}
 
         // Close modal with Escape key
