@@ -33,10 +33,8 @@ def generate_global_summary(output_dir, VERSION):
             try:
                 # Get paths for both model and version files
                 base_name = model_file.parent.name
-                # Skip if model is in missing_models
-                if f"{base_name}.safetensors" in missing_models:
-                    continue
                 version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
+                html_file = model_file.parent / f"{base_name}.html"
         
                 # Read both files
                 with open(model_file, 'r', encoding='utf-8') as f:
@@ -62,6 +60,7 @@ def generate_global_summary(output_dir, VERSION):
                     # Add version data
                     'version_name': version_data.get('name', ''),
                     'downloads': version_data.get('stats', {}).get('downloadCount', 0),
+                    'has_html': html_file.exists()
                 })
             except:
                 continue
@@ -133,7 +132,8 @@ def generate_global_summary(output_dir, VERSION):
                 tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
                 
                 card_html = f"""
-                    <div class="model-card{' missing' if model.get('missing') else ''}" data-tags="{','.join(model['tags']).lower()}">
+                    <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" data-tags="{','.join(model['tags']).lower()}">
+                        <img class="model-cover" src="{model['base_name']}/{model['base_name']}_preview_0.jpeg" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
                         <h3>{model_name}</h3>
                         <small class="version-name">{model.get('version_name', '')}</small>
                         <div>by {model['creator']}</div>
@@ -205,6 +205,7 @@ def generate_global_summary(output_dir, VERSION):
             gap: 20px;
         }}
         .model-card {{
+            position: relative;
             background-color: #f8f9fa;
             border: 1px solid #eee;
             border-radius: 8px;
@@ -215,9 +216,39 @@ def generate_global_summary(output_dir, VERSION):
             transform: translateY(-2px);
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }}
+        .model-card.processed {{
+            min-height: 200px; /* Only apply min-height to processed cards */
+        }}
         .model-card.missing {{
             background-color: #fff3f3;
             border: 1px solid #ffcdd2;
+        }}
+        .model-cover {{
+            display: none; /* Hidden by default */
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            object-position: top;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 15px;
+        }}
+        .show-covers .model-cover {{
+            display: block;
+        }}
+        .toggle-button {{
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }}
+        .toggle-button:hover {{
+            background-color: #2779af;
+        }}
+        .toggle-button.active {{
+            background-color: #27ae60;
         }}
         .missing-model {{
             color: #d32f2f;
@@ -271,6 +302,9 @@ def generate_global_summary(output_dir, VERSION):
             <h2>({total_models} models)</h2>
 
             <input type="text" class="search-box" id="searchBox" placeholder="Search by tags (comma separated)...">
+            <div class="view-options">
+                <button id="toggleCovers" class="toggle-button">Show Covers</button>
+            </div>
         </div>
         {type_sections}
     </div>
@@ -282,9 +316,9 @@ def generate_global_summary(output_dir, VERSION):
     </div>
 
     <script>
+        // Search box
         const searchBox = document.getElementById('searchBox');
         const modelCards = document.querySelectorAll('.model-card');
-
         searchBox.addEventListener('input', function() {{
             const searchTags = searchBox.value.toLowerCase().split(',').map(tag => tag.trim()).filter(tag => tag);
             
@@ -311,6 +345,25 @@ def generate_global_summary(output_dir, VERSION):
                 const visibleCards = section.querySelectorAll('.model-card:not(.hidden)').length;
                 section.style.display = visibleCards > 0 ? 'block' : 'none';
             }});
+        }});
+
+        // Image covers toggle
+        const toggleButton = document.getElementById('toggleCovers');
+        const container = document.querySelector('.container');
+
+        // Check local storage for user preference
+        const showCovers = localStorage.getItem('showCovers') === 'true';
+        if (showCovers) {{
+            container.classList.add('show-covers');
+            toggleButton.classList.add('active');
+        }}
+
+        toggleButton.addEventListener('click', function() {{
+            container.classList.toggle('show-covers');
+            this.classList.toggle('active');
+            
+            // Save preference to local storage
+            localStorage.setItem('showCovers', container.classList.contains('show-covers'));
         }});
     </script>
 </body>
