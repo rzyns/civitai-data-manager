@@ -257,8 +257,6 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 ## 🛣️ Roadmap
 
 - **🔥 Preview Image Metadata**: Display the metadata associated with preview images (seed, prompt, guiande...).
-- **🐛 Fix Video in Preview Images**: Handle the videos in preview images.
-- **🐛 Fix Missing Model appearing twice**: Missing models should appear only once but clickable if successfully processed before.
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Improve Browser**: Add an option to display the cover image of models in the browser list.
 - **Improve Search**: Make the search to include file names.

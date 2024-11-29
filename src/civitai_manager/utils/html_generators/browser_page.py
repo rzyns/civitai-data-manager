@@ -33,6 +33,9 @@ def generate_global_summary(output_dir, VERSION):
             try:
                 # Get paths for both model and version files
                 base_name = model_file.parent.name
+                # Skip if model is in missing_models
+                if f"{base_name}.safetensors" in missing_models:
+                    continue
                 version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
         
                 # Read both files
@@ -70,18 +73,22 @@ def generate_global_summary(output_dir, VERSION):
             
             for filename in missing_models:
                 base_name = Path(filename).stem
+                html_file = Path(output_dir) / base_name / f"{base_name}.html"
+                html_exists = html_file.exists()
+
                 models_by_type['Missing from Civitai'].append({
                     'name': base_name,
                     'creator': 'Unknown',
                     'downloads': 0,
                     'base_name': base_name,
-                    'html_file': '',
+                    'html_file': f"{base_name}.html" if html_exists else '',
                     'tags': [],
                     'baseModel': 'Unknown',
                     'trainedWords': [],
                     'createdAt': 'Unknown',
                     'updatedAt': 'Unknown',
-                    'missing': True
+                    'missing': True,
+                    'has_html': html_exists
                 })
 
         # Sort each type's models
@@ -100,9 +107,9 @@ def generate_global_summary(output_dir, VERSION):
             model_cards = []
             for model in models:
                 model_name = (
-                    '<span class="missing-model">' + model['name'] + '</span>'
-                    if model.get('missing')
-                    else f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
+                    f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
+                    if model.get('has_html', False) or not model.get('missing')
+                    else '<span class="missing-model">' + model['name'] + '</span>'
                 )
                 
                 dates_section = ''
