@@ -279,6 +279,60 @@ def update_missing_files_list(base_path, safetensors_path, status_code):
         missing_file.unlink()
         print("\nAll models are now available on Civitai. Removed missing_from_civitai.txt")
 
+def find_duplicate_models(directory_path, base_output_path):
+    """
+    Find models with duplicate hashes
+    
+    Args:
+        directory_path (Path): Directory containing safetensors files
+        base_output_path (Path): Base output directory path
+        
+    Returns:
+        dict: Dictionary mapping hashes to lists of model info
+    """
+    hash_map = {}
+    
+    # Scan all processed models
+    for model_dir in base_output_path.iterdir():
+        if not model_dir.is_dir():
+            continue
+            
+        hash_file = model_dir / f"{model_dir.name}_hash.json"
+        if not hash_file.exists():
+            continue
+            
+        try:
+            with open(hash_file, 'r', encoding='utf-8') as f:
+                hash_data = json.load(f)
+                hash_value = hash_data.get('hash_value')
+                if not hash_value:
+                    continue
+                    
+                # Find corresponding safetensors file
+                safetensors_file = None
+                for file in Path(directory_path).glob('**/*.safetensors'):
+                    if file.stem == model_dir.name:
+                        safetensors_file = file
+                        break
+                
+                if not safetensors_file:
+                    continue
+                    
+                if hash_value not in hash_map:
+                    hash_map[hash_value] = []
+                    
+                hash_map[hash_value].append({
+                    'model_dir': model_dir,
+                    'safetensors_file': safetensors_file,
+                    'processed_time': hash_data.get('timestamp')
+                })
+                
+        except Exception as e:
+            print(f"Error reading hash file {hash_file}: {e}")
+            continue
+            
+    return {k: v for k, v in hash_map.items() if len(v) > 1}
+
 def clean_output_directory(directory_path, base_output_path):
     """
     Clean up output directory by removing data for models that no longer exist
@@ -288,8 +342,46 @@ def clean_output_directory(directory_path, base_output_path):
         base_output_path (Path): Base output directory path
     """
 
-    print("\nStarting cleanup process...")
-    
+    print("\nStarting cleanup process (duplicates)...")
+
+    # First handle duplicates
+    duplicates = find_duplicate_models(directory_path, base_output_path)
+    if duplicates:
+        duplicate_file = base_output_path / "duplicate_models.txt"
+        with open(duplicate_file, 'w', encoding='utf-8') as f:
+            f.write("# Duplicate models found in input directory\n")
+            f.write("# Format: Hash | Kept Model | Removed Duplicates\n")
+            f.write("# This file is automatically updated when running --clean\n\n")
+            
+            for hash_value, models in duplicates.items():
+                # Sort by processed time, newest first
+                sorted_models = sorted(models, 
+                    key=lambda x: x['processed_time'] if x['processed_time'] else '',
+                    reverse=True
+                )
+                
+                # Keep the newest one, remove others
+                kept_model = sorted_models[0]
+                removed_models = sorted_models[1:]
+                
+                # Write to duplicates file
+                f.write(f"Hash: {hash_value}\n")
+                f.write(f"Kept: {kept_model['safetensors_file']}\n")
+                f.write("Removed:\n")
+                
+                for model in removed_models:
+                    f.write(f"  - {model['safetensors_file']}\n")
+                    print(f"Removing duplicate model: {model['model_dir'].name}")
+                    try:
+                        shutil.rmtree(model['model_dir'])
+                    except Exception as e:
+                        print(f"Error removing directory {model['model_dir']}: {e}")
+                f.write("\n")    
+ 
+    print(f"\nDuplicate models list saved to {duplicate_file}")
+
+    print("\nStarting cleanup process (removed models)...")
+    # Then handle missing models
     # Get list of all current safetensors files (without extension)
     existing_models = {
         Path(file).stem
