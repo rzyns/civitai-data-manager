@@ -9,6 +9,7 @@ from src.civitai_manager.core.metadata_manager import (
     process_single_file,
     process_directory,
     clean_output_directory,
+    generate_image_json_files,
     get_output_path
 )
 from src.civitai_manager.utils.html_generators.browser_page import generate_global_summary
@@ -25,18 +26,20 @@ def main():
                        help='Output directory path (if not specified, will prompt for it)')
     parser.add_argument('--images', action='store_true',
                        help='Download all available preview images instead of just the first one')
+    parser.add_argument('--generateimagejson', action='store_true',
+                       help='Generate JSON files for all preview images from existing model version data')
     parser.add_argument('--noimages', action='store_true',
                        help='Skip downloading any preview images')
     parser.add_argument('--onlynew', action='store_true',
                        help='Only process new files that haven\'t been processed before')
     parser.add_argument('--skipmissing', action='store_true',
-                    help='Skip previously missing models when used with --onlynew')
+                       help='Skip previously missing models when used with --onlynew')
     parser.add_argument('--onlyhtml', action='store_true',
                        help='Only generate HTML files from existing JSON data')
     parser.add_argument('--onlyupdate', action='store_true',
                        help='Only update previously processed files, skipping hash calculation')
     parser.add_argument('--clean', action='store_true',
-                    help='Remove data for models that no longer exist in the target directory')
+                       help='Remove data for models that no longer exist in the target directory')
 
     args = parser.parse_args()
     
@@ -85,8 +88,11 @@ def main():
                           only_update=args.onlyupdate)
     else:
         directory_path = Path(args.all)
+        
         if args.clean:
             clean_output_directory(directory_path, base_output_path)
+        elif args.generateimagejson:
+            generate_image_json_files(base_output_path)
         else:
             process_directory(directory_path, base_output_path, 
                             args.notimeout,

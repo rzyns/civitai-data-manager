@@ -22,6 +22,7 @@
   - [Processed Files Tracking](#processed-files-tracking)
 - [FAQ](#-faq)
 - [Roadmap](#-roadmap)
+- [Changelog](#-changelog)
 - [Additional Information](#-additional-information)
   - [Contributing](#contributing)
   - [License](#license)
@@ -125,6 +126,12 @@ python main.py --all "path/to/your/models/directory"
   ```
   If this flag is not provided, the script will only download the first preview image.
 
+- `--generateimagejson`: Generate JSON files for all preview images from existing model version data
+  ```bash
+  python main.py --all "path/to/directory" --generateimagejson
+  ```
+  This option is only useful for data generated before script version 1.3.0
+
 - `--noimages`: Disable downloading of preview images
   ```bash
   python main.py --all "path/to/directory" --noimages
@@ -190,11 +197,14 @@ output_directory/
 │   ├── model_name_hash.json                  # SHA256 hash
 │   ├── model_name_civitai_model_version.json # Model-versions endpoint data from Civitai
 │   ├── model_name_civitai_model.json         # Full model data from Civitai
-│   ├── model_name_preview_0.jpg              # First preview image
-│   ├── model_name_preview_x.jpg              # Additional preview images (if --images used)
+│   ├── model_name_preview_0.jpeg             # First preview image
+│   ├── model_name_preview_0.json             # Metadata for first preview image
+│   ├── model_name_preview_x.jpeg             # Additional preview images (if --images used)
+│   ├── model_name_preview_x.json             # Metadata for additional preview images (if --images used)
 │   └── model_name.html                       # Model-specific HTML page
 ├── index.html                                # Model browser
 ├── missing_from_civitai.txt                  # List of models not found on Civitai
+├── duplicate_models.txt                      # List of duplicate models
 └── processed_files.json                      # List of processed files
 ```
 
@@ -209,6 +219,20 @@ Format in `missing_from_civitai.txt`:
 
 2024-11-06 15:53:56 | Status 404 | model1.safetensors
 2024-11-06 15:50:39 | Status 404 | model2.safetensors
+```
+
+### Duplicate Models Tracking
+
+Format in `duplicate_models.txt`:
+```
+# Duplicate models found in input directory
+# Format: Hash | Kept Model | Removed Duplicates
+# This file is automatically updated when running --clean
+
+Hash: <hash>
+Kept: <path>\model.safetensors
+Removed:
+  - <path>\model-2.safetensors
 ```
 
 ## 🔍 Features in Detail
@@ -262,12 +286,42 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 🛣️ Roadmap
 
-- **🔥 Preview Image Metadata**: Display the metadata associated with preview images (seed, prompt, guiande...).
 - **Dark Mode**: Integrate dark mode in the templates.
+- **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
 - **Filters**: Add option to filter models by Author or Base Model.
 - **Implement Logging**: Add logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
+
+## 📜 Changelog
+
+### [1.3.0]
+
+- 🔥 feat: Enhance image modal with detailed metadata display (seed, prompt used etc.)
+
+### [1.2.5]
+
+- 🔥 feat: Enhance model browser search functionality
+
+### [1.2.4]
+
+- feat: Enhance --clean to detect and handle duplicate models
+
+### [1.2.3]
+
+- feat: Add toggleable cover images to model browser
+
+### [1.2.2]
+
+- feat: Add --skipmissing option for optimizing model checks
+
+### [1.2.1]
+
+- fix: Prevent missing models from appearing in multiple sections
+
+### [1.2.0]
+
+- feat: Add video preview support for model galleries
 
 ## 📘 Additional Information
 

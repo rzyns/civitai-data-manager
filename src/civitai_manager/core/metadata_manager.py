@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.2.5"
+VERSION = "1.3.0"
 
 def get_output_path(clean=False):
     """
@@ -183,7 +183,7 @@ def extract_hash(file_path, output_dir):
         print(f"Error: {str(e)}")
         return None
     
-def download_preview_image(image_url, output_dir, base_name, index=None, is_video=False):
+def download_preview_image(image_url, output_dir, base_name, index=None, is_video=False, image_data=None):
     """
     Download a preview image from Civitai
     
@@ -222,7 +222,14 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-            
+
+            # Download and save the metadata associated with the image
+            if image_data:
+                json_filename = f"{image_filename}.json"
+                json_path = output_dir / json_filename
+                with open(json_path, 'w', encoding='utf-8') as f:
+                    json.dump(image_data, f, indent=4)
+
             print(f"Preview image successfully saved to {image_path}")
             return True
         else:
@@ -232,6 +239,51 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
     except Exception as e:
         print(f"Error downloading preview image: {str(e)}")
         return False
+
+def generate_image_json_files(base_output_path):
+    """
+    Generate JSON files for all preview images from existing model version data
+    
+    Args:
+        base_output_path (Path): Base output directory path
+    """
+    print("\nGenerating JSON files for preview images...")
+    
+    # Find all model version JSON files
+    version_files = list(Path(base_output_path).glob('*/*_civitai_model_version.json'))
+    total_generated = 0
+    
+    for version_file in version_files:
+        try:
+            # Read version data
+            with open(version_file, 'r', encoding='utf-8') as f:
+                version_data = json.load(f)
+            
+            # Get model directory
+            model_dir = version_file.parent
+            
+            # Process each image in the version data
+            if 'images' in version_data:
+                for i, image_data in enumerate(version_data['images']):
+                    # Determine the preview file extension
+                    ext = '.mp4' if image_data.get('type') == 'video' else '.jpeg'
+                    preview_file = model_dir / f"{model_dir.name}_preview_{i}{ext}"
+                    
+                    # Only create JSON if the preview file exists
+                    if preview_file.exists():
+                        json_file = preview_file.with_suffix('.json')
+                        
+                        # Write image metadata
+                        with open(json_file, 'w', encoding='utf-8') as f:
+                            json.dump(image_data, f, indent=4)
+                            total_generated += 1
+                            
+        except Exception as e:
+            print(f"Error processing {version_file}: {str(e)}")
+            continue
+    
+    print(f"\nGenerated {total_generated} JSON files for preview images")
+    return True
 
 def update_missing_files_list(base_path, safetensors_path, status_code):
     """
@@ -456,7 +508,7 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
                         for i, image_data in enumerate(response_data['images']):
                             if 'url' in image_data:
                                 is_video = image_data.get('type') == 'video'
-                                download_preview_image(image_data['url'], output_dir, base_name, i, is_video)
+                                download_preview_image(image_data['url'], output_dir, base_name, i, is_video, image_data)
                                 # Add a small delay between downloads to be nice to the server
                                 if i < len(response_data['images']) - 1:
                                     time.sleep(1)
@@ -464,7 +516,7 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
                         # Download only the first image
                         if 'url' in response_data['images'][0]:
                             is_video = response_data['images'][0].get('type') == 'video'
-                            download_preview_image(response_data['images'][0]['url'], output_dir, base_name, 0, is_video)
+                            download_preview_image(response_data['images'][0]['url'], output_dir, base_name, 0, is_video, response_data['images'][0])
 
                 
                 # Return modelId if it exists

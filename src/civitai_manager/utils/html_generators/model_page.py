@@ -1,4 +1,5 @@
 import json
+import html
 from datetime import datetime
 
 def generate_html_summary(output_dir, safetensors_path, VERSION):
@@ -52,9 +53,22 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 """
                 for i, img_path in enumerate(preview_images):
                     relative_path = img_path.name
+                    json_path = img_path.with_suffix('.json')
+
+                    # Load metadata if exists
+                    metadata = {}
+                    if json_path.exists():
+                        try:
+                            with open(json_path, 'r', encoding='utf-8') as f:
+                                metadata = json.load(f)
+                        except:
+                            pass
+                            
+                    metadata_attr = f'data-metadata="{html.escape(json.dumps(metadata))}"' if metadata else ''
+
                     if str(img_path).endswith('.mp4'):
                         gallery_html += f"""
-                            <div class="gallery-item" onclick="openModal('{relative_path}', true)">
+                            <div class="gallery-item" onclick="openModal('{relative_path}', true, this)" {metadata_attr}>
                                 <video>
                                     <source src="{relative_path}" type="video/mp4">
                                     Your browser does not support the video tag.
@@ -63,7 +77,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                         """
                     else:
                         gallery_html += f"""
-                            <div class="gallery-item" onclick="openModal('{relative_path}', false)">
+                            <div class="gallery-item" onclick="openModal('{relative_path}', false, this)" {metadata_attr}>
                                 <img src="{relative_path}" alt="Preview {i+1}">
                             </div>
                         """
@@ -286,12 +300,59 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             z-index: 1000;
             overflow: auto;
         }}
-        .modal-content {{
-            margin: auto;
-            display: block;
+        .modal-wrapper {{
+            display: flex;
+            justify-content: center;
             max-width: 90%;
+            max-height: 90%;
+            margin: 50px auto;
+            overflow: hidden;
+        }}
+        .modal-content {{
+            display: flex;
+            max-width: 90%;
+            margin: 50px auto;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }}
+        .modal-main {{
+            min-width: 0;
+            overflow: hidden;
+            border-radius: 8px;
+        }}
+        .modal-main img {{
+            display: block;
+        }}
+        .modal-main video {{
+            display: block;
+        }}
+        .modal-sidebar {{
+            width: 300px;
+            background: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
             max-height: 90vh;
-            margin-top: 50px;
+            border-radius: 8px;
+            margin-left: 20px;
+        }}
+        .metadata-section {{
+            margin-bottom: 15px;
+        }}
+        .metadata-label {{
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+        }}
+        .metadata-value {{
+            word-break: break-word;
+        }}
+        .resource-item {{
+            background: #cfcfcf;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
         }}
         .modal-close {{
             position: fixed;
@@ -419,23 +480,34 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         Generated: {datetime.now().isoformat()}
     </div>
 
-    <!-- Modal for full-size images -->
-    <div id="imageModal" class="modal" onclick="closeModal()">
+    <!-- Modal for full-size media -->
+    <div id="imageModal" class="modal">
         <span class="modal-close">&times;</span>
-        <img class="modal-content" id="modalImage" style="display: none;">
-        <video class="modal-content" id="modalVideo" controls style="display: none;">
-            <source src="" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
+        <div class="modal-wrapper">
+            <div class="modal-main">
+                <img id="modalImage" style="display: none;">
+                <video id="modalVideo" controls style="display: none;">
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="modal-sidebar">
+                <div id="modalMetadata"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        function openModal(mediaPath, isVideo) {{
+        function openModal(mediaPath, isVideo, element) {{
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
             const modalVideo = document.getElementById('modalVideo');
+            const metadataDiv = document.getElementById('modalMetadata');
             
             modal.style.display = "block";
+            
+            // Get metadata from clicked element
+            const metadata = element.dataset.metadata;
             
             if (isVideo) {{
                 modalImg.style.display = "none";
@@ -447,6 +519,140 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 modalVideo.style.display = "none";
                 modalImg.src = mediaPath;
             }}
+            
+            // Display metadata if available
+            if (metadata) {{
+                const data = JSON.parse(metadata);
+                let metadataHtml = '';
+
+                if (data.hasMeta === false) {{
+                    metadataHtml += `
+                        <p>No metadata available</p>
+                    `;
+                }}
+                
+                // Add generation metadata if available
+                if (data.meta) {{
+                    const meta = data.meta;
+                    
+                    if (meta.prompt) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Prompt</div>
+                                <div class="metadata-value" style="white-space: pre-wrap;">${{meta.prompt}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.cfgScale) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">CFG Scale/Guidance</div>
+                                <div class="metadata-value">${{meta.cfgScale}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.steps) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Steps</div>
+                                <div class="metadata-value">${{meta.steps}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.denoise) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Denoise</div>
+                                <div class="metadata-value">${{meta.denoise}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.seed) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Seed</div>
+                                <div class="metadata-value">${{meta.seed}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.sampler) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Sampler</div>
+                                <div class="metadata-value">${{meta.sampler}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta['Schedule type']) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Schedule Type</div>
+                                <div class="metadata-value">${{meta['Schedule type']}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta['Distilled CFG Scale']) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Distilled CFG Scale</div>
+                                <div class="metadata-value">${{meta['Distilled CFG Scale']}}</div>
+                            </div>
+                        `;
+                    }}
+                    
+                    if (meta.Model) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Model</div>
+                                <div class="metadata-value">${{meta.Model}}</div>
+                            </div>
+                        `;
+                    }}
+
+                    if (meta['resources'] && meta['resources'].length > 0) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Resources</div>
+                                <div class="metadata-value">
+                                    ${{meta['resources'].map(resource => `
+                                        <div class="resource-item">
+                                            <div class="resource-name">${{resource.name}} (${{resource.type}})</div>
+                                            ${{resource.weight ? `<div class="resource-weight">weight: ${{resource.weight}}</div>` : ''}}
+                                        </div>
+                                    `).join('')}}
+                                </div>
+                            </div>
+                        `;
+                    }}
+
+                    if (meta['additionalResources'] && meta['additionalResources'].length > 0) {{
+                        metadataHtml += `
+                            <div class="metadata-section">
+                                <div class="metadata-label">Additional Resources</div>
+                                <div class="metadata-value">
+                                    ${{meta['additionalResources'].map(resource => `
+                                        <div class="resource-item">
+                                            <div class="resource-name">${{resource.name}} (${{resource.type}})</div>
+                                            ${{resource.strength ? `<div class="resource-weight">strength: ${{resource.strength}}</div>` : ''}}
+                                        </div>
+                                    `).join('')}}
+                                </div>
+                            </div>
+                        `;
+                    }}
+                }}
+                
+                metadataDiv.innerHTML = metadataHtml;
+            }} else {{
+                metadataDiv.innerHTML = '<p>No metadata available</p>';
+            }}
         }}
 
         function closeModal() {{
@@ -457,11 +663,19 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             modalVideo.currentTime = 0;
         }}
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(event) {{
-            if (event.key === "Escape") {{
+        // Close modal
+        document.addEventListener('DOMContentLoaded', function() {{
+            // Close only when clicking the X button
+            document.querySelector('.modal-close').addEventListener('click', function() {{
                 closeModal();
-            }}
+            }});
+
+            // Close with Escape key
+            document.addEventListener('keydown', function(event) {{
+                if (event.key === "Escape") {{
+                    closeModal();
+                }}
+            }});
         }});
     </script>
 </body>
