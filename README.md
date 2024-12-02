@@ -30,25 +30,26 @@
 
 ## 📄 Overview
 
-A Python script that fetches and saves metadata, description, tags, hashes, and preview images for SafeTensors model files by querying the Civitai API.
+A lightweight tool that fetches and saves metadata, description, tags, hashes, and preview images for SafeTensors model files by querying the Civitai API.
 
-It generates JSON files for data storage and interactive HTML pages for easy browsing. The script is especially useful for maintaining model information (trigger words, usage notes, authors) even after models might be removed from Civitai. By creating a local backup of crucial model data, you can ensure your collection remains well-documented and easily accessible regardless of the models' availability online.
+It generates interactive HTML pages for easy collection browsing. The tool is especially useful for maintaining model information (trigger words, usage notes, authors) even after models might be removed from Civitai. By creating a local backup of crucial model data, you can ensure your collection remains well-documented and easily accessible regardless of the models' availability online.
 
 ## 🖥️ Demo
 
 ![Civitai Data Manager Demo](https://i.imgur.com/jKXxX4S.gif)
 
-<div style="text-align:center;"><a href="https://win3ry.com/projects/civitai/">Demo</a></div>
+<!-- <div style="text-align:center;"><a href="https://win3ry.com/projects/civitai/">Demo</a></div> -->
 
 ## ✨ Key Benefits
 
-- **Save Trigger Words**: Preserve Lora trigger words even if the associated model is no longer available on Civitai.
 - **Protect Key Information**: Models may be removed from Civitai, making it crucial to back up their usage instructions for future reference.
-- **Minimalistic Tool**: A straightforward, lightweight solution that doesn't require installing a full Civitai manager on your computer.
+- **Save Trigger Words**: Preserve Lora trigger words even if the associated model is no longer available on Civitai.
+- **Minimalistic Tool**: A free, straightforward and lightweight solution that doesn't require using an API key.
 - **Organize Model Details**: Keep track of model authors, versions, and usage examples for easy reference.
 - **Monitor Unavailable Models**: Maintain a record of models you own that have been removed from Civitai.
-- **Track All Downloads**: Easily manage models downloaded from Civitai, even if they've been renamed.
+- **Track Renamed Models**: Find models downloaded from Civitai, even if the file has been renamed.
 - **Smart Updates**: Updates only occur for models with new information on Civitai, keeping the process efficient.
+- **Generation Example**: Save the prompts and generation details for all the Loras/checkpoints' preview images.
 
 ## 🔄 Model Compatibility
 
@@ -162,7 +163,6 @@ python main.py --all "path/to/your/models/directory"
   ```bash
   python main.py --all "path/to/directory" --clean
 
-
 ### Recommended Organization
 
 For better organization, run separately for each model category:
@@ -184,7 +184,7 @@ python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux"
 - Then, run periodically to catch updates with `--onlynew --images`
 - If you want to update only the Civitai data, use `--onlyupdate --noimages`
 - Just in case, always back up the generated data directory with your models
-- Monitor `missing_from_civitai.txt` for manual documentation needs
+- Monitor `missing_from_civitai.txt` and `duplicate_models.txt` for manual documentation needs
 
 ## 🗃️ Output Structure
 
@@ -262,12 +262,12 @@ If you do not have a lot of files to process, you can disable these delays using
 - By default, only the first preview image will be downloaded.
 
 ### HTML Generation
-- Individual HTML files for each model showing detailed information and image gallery
+- Individual HTML files for each model showing detailed information and image gallery with generation details
 - Global model browser with:
   - Models grouped by type (checkpoint, lora, etc.)
-  - Tag-based search functionality
-  - By default, models sorted by Download count
-  - Links to individual model pages
+  - Search functionality (tag, filename, model name)
+  - By default, models are sorted by Download count
+  - Links to individual model and direct download pages
 
 ### Processed Files Tracking
 - Maintains a JSON file listing all processed models
@@ -289,6 +289,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
 - **Special Model Names**: Fix the link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 - **Lightbox Improvement**: Add keyboard navigation between images.
+- **Reduce Rate Limiting**: Maybe reduce the delay a little bit.
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser.
