@@ -290,15 +290,16 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **🔥 Manual model page**: Add a way for users to add manually (via json file and directory scan) - useful if a model was never available on Civitai but downloaded elsewhere
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
 - **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
-- **Lightbox Improvement**: Add keyboard navigation between images.
 - **Dark Mode**: Integrate dark mode in the templates.
-- **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser (in the future config file).
 - **Filters**: Add option to filter models by Author or Base Model.
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
 ## 📜 Changelog
+
+### [1.3.6]
+- feat: Add keyboard navigation for preview images
 
 ### [1.3.5]
 - refactor: Decreasing the default delay between models (from 6-12 to 3-6 seconds)

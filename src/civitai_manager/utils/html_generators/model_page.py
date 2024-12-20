@@ -366,6 +366,17 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             font-weight: bold;
             cursor: pointer;
         }}
+        .navigation-hint {{
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+        }}
     </style>
 </head>
 <body>
@@ -498,6 +509,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 <div id="modalMetadata"></div>
             </div>
         </div>
+        <div class="navigation-hint">Use ← → arrow keys to navigate</div>
     </div>
 
     <script>
@@ -680,6 +692,56 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 }}
             }});
         }});
+
+        // Track current image index and all gallery items
+        let currentImageIndex = 0;
+        const galleryItems = [];
+
+        // Initialize gallery items array when DOM loads
+        document.addEventListener('DOMContentLoaded', function() {{
+            // Store all gallery items for navigation
+            document.querySelectorAll('.gallery-item').forEach(item => {{
+                galleryItems.push(item);
+            }});
+
+            // Add keyboard navigation
+            document.addEventListener('keydown', function(event) {{
+                const modal = document.getElementById('imageModal');
+                // Only handle keyboard navigation when modal is open
+                if (modal.style.display === "block") {{
+                    switch(event.key) {{
+                        case "ArrowLeft":
+                            navigateImage(-1);
+                            break;
+                        case "ArrowRight":
+                            navigateImage(1);
+                            break;
+                        case "Escape":
+                            closeModal();
+                            break;
+                    }}
+                }}
+            }});
+        }});
+
+        // Function to navigate between images
+        function navigateImage(direction) {{
+            const newIndex = currentImageIndex + direction;
+            
+            // Check if new index is valid
+            if (newIndex >= 0 && newIndex < galleryItems.length) {{
+                currentImageIndex = newIndex;  // Update the current index
+                const nextItem = galleryItems[newIndex];
+                
+                // Get the media source directly from the gallery item's onclick attribute
+                const onclickAttr = nextItem.getAttribute('onclick');
+                const mediaPath = onclickAttr.split("'")[1];  // Extract path from onclick="openModal('path',..."
+                const isVideo = mediaPath.endsWith('.mp4');
+                
+                // Use existing openModal function to handle the display and metadata
+                openModal(mediaPath, isVideo, nextItem);
+            }}
+        }}
     </script>
 </body>
 </html>
