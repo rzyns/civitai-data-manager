@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.3.4"
+VERSION = "1.3.5"
 
 def get_output_path(clean=False):
     """
@@ -814,7 +814,7 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
         
         # Add timeout between files (except for the last file) if not in HTML only mode
         if not html_only and not no_timeout and i < len(safetensors_files):
-            timeout = random.uniform(6, 12)
+            timeout = random.uniform(3, 6)
             print(f"\nWaiting {timeout:.1f} seconds before processing next file (rate limiting protection)...")
             print("(You can use --notimeout to disable this waiting time)")
             time.sleep(timeout)

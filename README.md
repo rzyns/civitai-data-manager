@@ -238,13 +238,13 @@ Removed:
 ## 🔍 Features in Detail
 
 ### Rate Limiting Protection
-- Default: random delay between 6-12 seconds after each model
+- Default: random delay between 3-6 seconds after each model and 1 second between each picture
 - Disable with `--notimeout` flag (use cautiously)
 
-For example, processing 10 models would take:
-- Minimum time: ~54 seconds
-- Maximum time: ~108 seconds
-- Average time: ~81 seconds
+For example, processing 10 models (with 10 pictures each) would take:
+- Minimum time: ~127 seconds
+- Maximum time: ~154 seconds
+- Average time: ~140.5 seconds
 
 **Note about Rate Limiting:** While Civitai's exact rate limiting policies are not publicly documented, these delays are implemented as a precautionary measure to:
 - Be respectful to Civitai's servers
@@ -291,7 +291,6 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
 - **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 - **Lightbox Improvement**: Add keyboard navigation between images.
-- **Reduce Rate Limiting**: Maybe reduce the delay a little bit.
 - **Dark Mode**: Integrate dark mode in the templates.
 - **Reponsive**: Make the templates responsive.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser (in the future config file).
@@ -300,6 +299,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
 ## 📜 Changelog
+
+### [1.3.5]
+- refactor: Decreasing the default delay between models (from 6-12 to 3-6 seconds)
 
 ### [1.3.4]
 - fix: Improve preview image metadata handling
