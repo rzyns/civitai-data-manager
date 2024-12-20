@@ -319,6 +319,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+### [1.4.1]
+- fix: Fixed event listener persistence for arrow key navigation between images
+
 ### [1.4.0]
 - 🔥 feat: add JSON configuration file support
 

@@ -68,7 +68,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 
                     if str(img_path).endswith('.mp4'):
                         gallery_html += f"""
-                            <div class="gallery-item" onclick="openModal('{relative_path}', true, this)" {metadata_attr}>
+                            <div class="gallery-item" onclick="openModal('{relative_path}', true, this, {i})" {metadata_attr}>
                                 <video>
                                     <source src="{relative_path}" type="video/mp4">
                                     Your browser does not support the video tag.
@@ -77,7 +77,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                         """
                     else:
                         gallery_html += f"""
-                            <div class="gallery-item" onclick="openModal('{relative_path}', false, this)" {metadata_attr}>
+                            <div class="gallery-item" onclick="openModal('{relative_path}', false, this, {i})" {metadata_attr}>
                                 <img src="{relative_path}" alt="Preview {i+1}">
                             </div>
                         """
@@ -513,11 +513,12 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
     </div>
 
     <script>
-        function openModal(mediaPath, isVideo, element) {{
+        function openModal(mediaPath, isVideo, element, index) {{
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
             const modalVideo = document.getElementById('modalVideo');
             const metadataDiv = document.getElementById('modalMetadata');
+            currentImageIndex = index;
             
             modal.style.display = "block";
             
@@ -695,15 +696,10 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 
         // Track current image index and all gallery items
         let currentImageIndex = 0;
-        const galleryItems = [];
+        const galleryItems = document.querySelectorAll('.gallery-item');
 
         // Initialize gallery items array when DOM loads
         document.addEventListener('DOMContentLoaded', function() {{
-            // Store all gallery items for navigation
-            document.querySelectorAll('.gallery-item').forEach(item => {{
-                galleryItems.push(item);
-            }});
-
             // Add keyboard navigation
             document.addEventListener('keydown', function(event) {{
                 const modal = document.getElementById('imageModal');
@@ -730,7 +726,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             
             // Check if new index is valid
             if (newIndex >= 0 && newIndex < galleryItems.length) {{
-                currentImageIndex = newIndex;  // Update the current index
+                currentImageIndex = newIndex;
                 const nextItem = galleryItems[newIndex];
                 
                 // Get the media source directly from the gallery item's onclick attribute
@@ -739,7 +735,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 const isVideo = mediaPath.endsWith('.mp4');
                 
                 // Use existing openModal function to handle the display and metadata
-                openModal(mediaPath, isVideo, nextItem);
+                openModal(mediaPath, isVideo, nextItem, newIndex);
             }}
         }}
     </script>
