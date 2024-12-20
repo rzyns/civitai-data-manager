@@ -319,53 +319,25 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
-### [1.4.2]
-- feat: Add --noconfig flag to override config file
+- **1.4.3** - fix: Path handling in main function (fixed TypeError when processing command line arguments)
+- **1.4.2** - feat: Add --noconfig flag to override config file
+- **1.4.1** - fix: Fixed event listener persistence for arrow key navigation between images
+- **1.4.0** - 🔥 feat: add JSON configuration file support
 
-### [1.4.1]
-- fix: Fixed event listener persistence for arrow key navigation between images
+- **1.3.6** - feat: Add keyboard navigation for preview images
+- **1.3.5** - refactor: Decreasing the default delay between models (from 6-12 to 3-6 seconds)
+- **1.3.4** - fix: Improve preview image metadata handling
+- **1.3.3** - refactor: Increase model's thumbnail size in the model browser
+- **1.3.2** - fix: Handle duplicate file message in clean operation
+- **1.3.1** - fix: The scale effect in the model's gallery now affects videos
+- **1.3.0** - 🔥 feat: Enhance image modal with detailed metadata display (seed, prompt used etc.)
 
-### [1.4.0]
-- 🔥 feat: add JSON configuration file support
-
-### [1.3.6]
-- feat: Add keyboard navigation for preview images
-
-### [1.3.5]
-- refactor: Decreasing the default delay between models (from 6-12 to 3-6 seconds)
-
-### [1.3.4]
-- fix: Improve preview image metadata handling
-
-### [1.3.3]
-- refactor: Increase model's thumbnail size in the model browser
-
-### [1.3.2]
-- fix: Handle duplicate file message in clean operation
-
-### [1.3.1]
-- fix: The scale effect in the model's gallery now affects videos
-
-### [1.3.0]
-- 🔥 feat: Enhance image modal with detailed metadata display (seed, prompt used etc.)
-
-### [1.2.5]
-- 🔥 feat: Enhance model browser search functionality
-
-### [1.2.4]
-- feat: Enhance --clean to detect and handle duplicate models
-
-### [1.2.3]
-- feat: Add toggleable cover images to model browser
-
-### [1.2.2]
-- feat: Add --skipmissing option for optimizing model checks
-
-### [1.2.1]
-- fix: Prevent missing models from appearing in multiple sections
-
-### [1.2.0]
-- feat: Add video preview support for model galleries
+- **1.2.5** - 🔥 feat: Enhance model browser search functionality
+- **1.2.4** - feat: Enhance --clean to detect and handle duplicate models
+- **1.2.3** - feat: Add toggleable cover images to model browser
+- **1.2.2** - feat: Add --skipmissing option for optimizing model checks
+- **1.2.1** - fix: Prevent missing models from appearing in multiple sections
+- **1.2.0** - feat: Add video preview support for model galleries
 
 ## 📘 Additional Information
 

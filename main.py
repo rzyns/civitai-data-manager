@@ -120,14 +120,14 @@ def main():
     else:
         base_output_path = get_output_path(clean=config.get('clean', False))
     
-    if 'single' in config:
+    if config.get('single'):
         safetensors_path = Path(config['single'])
         process_single_file(safetensors_path, base_output_path, 
                           download_all_images=config.get('images', False),
                           skip_images=config.get('noimages', False),
                           html_only=config.get('onlyhtml', False),
                           only_update=config.get('onlyupdate', False))
-    else:
+    elif config.get('all'):
         directory_path = Path(config['all'])
         
         if config.get('clean', False):
