@@ -41,6 +41,9 @@ def parse_cli_args():
                        help='Only update previously processed files, skipping hash calculation')
     parser.add_argument('--clean', action='store_true',
                        help='Remove data for models that no longer exist in the target directory')
+    parser.add_argument('--noconfig', action='store_true',
+                       help='Ignore config.json and use command line arguments only')
+
 
     args = parser.parse_args()
     
@@ -69,8 +72,18 @@ def parse_cli_args():
 def get_config():
     """
     Try to load config from file first, fall back to CLI args if no config found
-    or if config is invalid.
+    or if config is invalid. Respect --noconfig flag.
     """
+    # Parse CLI args first to check for --noconfig
+    args = parse_cli_args()
+    
+    # If --noconfig is used, only use CLI args
+    if args.noconfig:
+        print("Using command line arguments (--noconfig specified)")
+        config = vars(args)
+        config.pop('noconfig')  # Remove noconfig from the config dict
+        return config
+    
     try:
         config = load_config()
         if config:
@@ -84,8 +97,9 @@ def get_config():
         print("Falling back to command line arguments...")
     
     # Convert CLI args to config dict
-    args = parse_cli_args()
-    return vars(args)
+    config = vars(args)
+    config.pop('noconfig')  # Remove noconfig from the config dict
+    return config
 
 def main():
     config = get_config()

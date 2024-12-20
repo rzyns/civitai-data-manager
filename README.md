@@ -113,19 +113,16 @@ Example config for first use (save as `config.json`):
 
 Examples of configuration are located in the `config_examples` directory.
 
-### Basic Commands
+### Basic Usage
 
-Single File Processing:
-```bash
-python main.py --single "path/to/your/model.safetensors"
-```
+- The first time, edit the `config.json` file and simply run:
+  ```bash
+  python main.py
+- To update with the data from newly added models, run periodically to catch updates with the update config (file present in `/config_examples/config.update.json`)
 
-Directory Processing:
-```bash
-python main.py --all "path/to/your/models/directory"
-```
+### All Options
 
-### Additional Options
+All these options can be used in the `config.json` file.
 
 - `--output`: Specify output directory
   ```bash
@@ -135,12 +132,12 @@ python main.py --all "path/to/your/models/directory"
 
 - `--notimeout`: Disable rate limiting protection (use with caution)
   ```bash
-  python main.py --all "path/to/directory" --notimeout
+  python main.py --all "path/to/model/directory" --notimeout
   ```
 
 - `--images`: Download all preview images for the models
   ```bash
-  python main.py --all "path/to/directory" --images
+  python main.py --all "path/to/model/directory" --images
   ```
   If this flag is not provided, the script will only download the first preview image.
 
@@ -152,54 +149,57 @@ python main.py --all "path/to/your/models/directory"
 
 - `--noimages`: Disable downloading of preview images
   ```bash
-  python main.py --all "path/to/directory" --noimages
+  python main.py --all "path/to/model/directory" --noimages
   ```
 
 - `--onlynew`: Only process new files that haven't been processed before
   ```bash
-  python main.py --all "path/to/directory" --onlynew
+  python main.py --all "path/to/model/directory" --onlynew
   ```
 
 - `--skipmissing`: Skip previously missing models when used with `--onlynew`
   ```bash
-  python main.py --all "path/to/directory" --onlynew --skipmissing
+  python main.py --all "path/to/model/directory" --onlynew --skipmissing
   ```
   If this flag is not provided, the script will always check for previously missing models.
 
 - `--onlyupdate`: Only update metadata for processed models
   ```bash
-  python main.py --all "path/to/directory" --onlyupdate
+  python main.py --all "path/to/model/directory" --onlyupdate
 
 - `--onlyhtml`: Generate HTML files from existing data without fetching from Civitai
   ```bash
-  python main.py --all "path/to/directory" --onlyhtml
+  python main.py --all "path/to/model/directory" --onlyhtml
   ```
   This option skips all API calls and only generates/updates HTML files.
   
 - `--clean`: Remove data for models that no longer exist in source directory
   ```bash
-  python main.py --all "path/to/directory" --clean
+  python main.py --all "path/to/model/directory" --clean
+
+-  `--noconfig`: Ignore config.json and use command line arguments only
+  ```bash
+  python main.py --all "path/to/model/directory" --images --noconfig
+  ```
+  This flag is helpful to debug or test configurations without removing the `config.json` file.
+
 
 ### Recommended Organization
 
 For better organization, run separately for each model category:
 ```bash
 # For checkpoints
-python main.py --all "path/to/checkpoints/sdxl" --output "path/to/backup/checkpoints/sdxl"
-python main.py --all "path/to/checkpoints/flux" --output "path/to/backup/checkpoints/flux"
+python main.py --all "path/to/checkpoints/sdxl" --output "path/to/backup/checkpoints/sdxl" --noconfig
+python main.py --all "path/to/checkpoints/flux" --output "path/to/backup/checkpoints/flux" --noconfig
 
 # For Loras
-python main.py --all "path/to/loras/sdxl" --output "path/to/backup/loras/sdxl"
-python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux"
+python main.py --all "path/to/loras/sdxl" --output "path/to/backup/loras/sdxl" --noconfig
+python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux" --noconfig
 ```
 
 ### Best Practices
 
-- The first time, run:
-  ```bash
-  python main.py --all "path/to/directory" --images
-- Then, run periodically to catch updates with `--onlynew --images`
-- If you want to update only the Civitai data, use `--onlyupdate --noimages`
+- If you want to update only the Civitai data, use the options `onlyupdate` and `noimages`
 - Just in case, always back up the generated data directory with your models
 - Monitor `missing_from_civitai.txt` and `duplicate_models.txt` for manual documentation needs
 
@@ -318,6 +318,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
 ## 📜 Changelog
+
+### [1.4.2]
+- feat: Add --noconfig flag to override config file
 
 ### [1.4.1]
 - fix: Fixed event listener persistence for arrow key navigation between images
