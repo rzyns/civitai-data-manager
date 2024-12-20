@@ -18,7 +18,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.3.3"
+VERSION = "1.3.4"
 
 def get_output_path(clean=False):
     """
@@ -225,7 +225,7 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
 
             # Download and save the metadata associated with the image
             if image_data:
-                json_filename = f"{image_filename}.json"
+                json_filename = f"{Path(image_filename).stem}.json"
                 json_path = output_dir / json_filename
                 with open(json_path, 'w', encoding='utf-8') as f:
                     json.dump(image_data, f, indent=4)

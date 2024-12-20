@@ -53,7 +53,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 """
                 for i, img_path in enumerate(preview_images):
                     relative_path = img_path.name
-                    json_path = img_path.with_suffix('.json')
+                    json_path = output_dir / f"{img_path.stem}.json"
 
                     # Load metadata if exists
                     metadata = {}

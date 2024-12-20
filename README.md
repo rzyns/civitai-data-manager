@@ -301,6 +301,9 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+### [1.3.4]
+- fix: Improve preview image metadata handling
+
 ### [1.3.3]
 - refactor: Increase model's thumbnail size in the model browser
 
