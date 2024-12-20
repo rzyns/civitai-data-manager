@@ -13,9 +13,10 @@ from src.civitai_manager.core.metadata_manager import (
     get_output_path
 )
 from src.civitai_manager.utils.html_generators.browser_page import generate_global_summary
+from src.civitai_manager.utils.config import load_config, ConfigValidationError
 
-def main():
-    # Setup argument parser
+def parse_cli_args():
+    """Parse and validate command line arguments."""
     parser = argparse.ArgumentParser(description='Process SafeTensors files and fetch Civitai data')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--single', type=str, help='Path to a single .safetensors file')
@@ -63,9 +64,35 @@ def main():
         print("Error: --clean cannot be used with --onlyhtml, --onlyupdate, or --onlynew")
         sys.exit(1)
     
-    # Get base output path either from argument or user input
-    if args.output:
-        base_output_path = Path(args.output)
+    return args
+
+def get_config():
+    """
+    Try to load config from file first, fall back to CLI args if no config found
+    or if config is invalid.
+    """
+    try:
+        config = load_config()
+        if config:
+            print("Using configuration from config.json")
+            return config
+    except ConfigValidationError as e:
+        print(f"Error in config file: {str(e)}")
+        print("Falling back to command line arguments...")
+    except Exception as e:
+        print(f"Error loading config file: {str(e)}")
+        print("Falling back to command line arguments...")
+    
+    # Convert CLI args to config dict
+    args = parse_cli_args()
+    return vars(args)
+
+def main():
+    config = get_config()
+    
+    # Get base output path either from config/argument or user input
+    if config.get('output'):
+        base_output_path = Path(config['output'])
         if not base_output_path.exists():
             try:
                 base_output_path.mkdir(parents=True, exist_ok=True)
@@ -77,33 +104,33 @@ def main():
             print(f"Error: No write permission for directory {base_output_path}")
             sys.exit(1)
     else:
-        base_output_path = get_output_path(clean=args.clean)
+        base_output_path = get_output_path(clean=config.get('clean', False))
     
-    if args.single:
-        safetensors_path = Path(args.single)
+    if 'single' in config:
+        safetensors_path = Path(config['single'])
         process_single_file(safetensors_path, base_output_path, 
-                          download_all_images=args.images,
-                          skip_images=args.noimages,
-                          html_only=args.onlyhtml,
-                          only_update=args.onlyupdate)
+                          download_all_images=config.get('images', False),
+                          skip_images=config.get('noimages', False),
+                          html_only=config.get('onlyhtml', False),
+                          only_update=config.get('onlyupdate', False))
     else:
-        directory_path = Path(args.all)
+        directory_path = Path(config['all'])
         
-        if args.clean:
+        if config.get('clean', False):
             clean_output_directory(directory_path, base_output_path)
-        elif args.generateimagejson:
+        elif config.get('generateimagejson', False):
             generate_image_json_files(base_output_path)
         else:
             process_directory(directory_path, base_output_path, 
-                            args.notimeout,
-                            download_all_images=args.images,
-                            skip_images=args.noimages,
-                            only_new=args.onlynew,
-                            html_only=args.onlyhtml,
-                            only_update=args.onlyupdate,
-                            skip_missing=args.skipmissing)
+                            config.get('notimeout', False),
+                            download_all_images=config.get('images', False),
+                            skip_images=config.get('noimages', False),
+                            only_new=config.get('onlynew', False),
+                            html_only=config.get('onlyhtml', False),
+                            only_update=config.get('onlyupdate', False),
+                            skip_missing=config.get('skipmissing', False))
         
-    if (args.single or args.all):
+    if ('single' in config or 'all' in config):
         generate_global_summary(base_output_path, VERSION)
 
 if __name__ == "__main__":

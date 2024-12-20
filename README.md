@@ -96,6 +96,23 @@ You should see the available command-line options displayed.
 
 ## 📖 Usage Guide
 
+You have two ways to use this tool: using a config.json file or options arguments.
+
+### Configuration File
+
+Edit the a `config.json` file in the script directory with your preferred settings. If present, the config file takes precedence over command-line arguments.
+
+Example config for first use (save as `config.json`):
+```json
+{
+    "all": "path/to/models/directory",
+    "output": "path/to/output/directory",
+    "images": true
+}
+```
+
+Examples of configuration are located in the `config_examples` directory.
+
 ### Basic Commands
 
 Single File Processing:
@@ -286,17 +303,24 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 🛣️ Roadmap
 
-- **🔥 Config file**: Add a config file (json) to optimize the tool and skip using the same flags each time
+### Features
 - **🔥 Manual model page**: Add a way for users to add manually (via json file and directory scan) - useful if a model was never available on Civitai but downloaded elsewhere
-- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
-- **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
-- **Dark Mode**: Integrate dark mode in the templates.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser (in the future config file).
 - **Filters**: Add option to filter models by Author or Base Model.
+- **Dark Mode**: Integrate dark mode in the templates.
+
+### Fixes
+- **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
+
+### Misc.
+- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
 ## 📜 Changelog
+
+### [1.4.0]
+- 🔥 feat: add JSON configuration file support
 
 ### [1.3.6]
 - feat: Add keyboard navigation for preview images

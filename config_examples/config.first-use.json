@@ -1,0 +1,5 @@
+{
+    "all": "path/to/models/directory",
+    "output": "path/to/output/directory",
+    "images": true
+}
