@@ -100,7 +100,7 @@ You have two ways to use this tool: using a config.json file or options argument
 
 ### Configuration File
 
-Edit the a `config.json` file in the script directory with your preferred settings. If present, the config file takes precedence over command-line arguments.
+Edit the `config.json` file in the script directory with your preferred settings. If present, the config file takes precedence over command-line arguments.
 
 Example config for first use (save as `config.json`):
 ```json
@@ -123,6 +123,16 @@ Examples of configuration are located in the `config_examples` directory.
 ### All Options
 
 All these options can be used in the `config.json` file.
+
+- `--single`: Specify a single input file
+  ```bash
+  python main.py --single "path/to/model.safetensors"
+  ```
+  
+- `--all`: Specify an input directory of models
+  ```bash
+  python main.py --all "path/to/model/directory"
+  ```
 
 - `--output`: Specify output directory
   ```bash
@@ -166,6 +176,7 @@ All these options can be used in the `config.json` file.
 - `--onlyupdate`: Only update metadata for processed models
   ```bash
   python main.py --all "path/to/model/directory" --onlyupdate
+  ```
 
 - `--onlyhtml`: Generate HTML files from existing data without fetching from Civitai
   ```bash
@@ -176,6 +187,7 @@ All these options can be used in the `config.json` file.
 - `--clean`: Remove data for models that no longer exist in source directory
   ```bash
   python main.py --all "path/to/model/directory" --clean
+  ```
 
 -  `--noconfig`: Ignore config.json and use command line arguments only
   ```bash
@@ -187,6 +199,7 @@ All these options can be used in the `config.json` file.
 ### Recommended Organization
 
 For better organization, run separately for each model category:
+
 ```bash
 # For checkpoints
 python main.py --all "path/to/checkpoints/sdxl" --output "path/to/backup/checkpoints/sdxl" --noconfig
@@ -313,7 +326,8 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 
 ### Misc.
-- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1)
+- **Clean README.md**: The successive additions have made the README a bit messy.
+- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1).
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 
