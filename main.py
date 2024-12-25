@@ -15,10 +15,10 @@ from src.civitai_manager.core.metadata_manager import (
 from src.civitai_manager.utils.html_generators.browser_page import generate_global_summary
 from src.civitai_manager.utils.config import load_config, ConfigValidationError
 
-def parse_cli_args():
+def parse_cli_args(require_args=False):
     """Parse and validate command line arguments."""
     parser = argparse.ArgumentParser(description='Process SafeTensors files and fetch Civitai data')
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=require_args)
     group.add_argument('--single', type=str, help='Path to a single .safetensors file')
     group.add_argument('--all', type=str, help='Path to directory containing .safetensors files')
     parser.add_argument('--notimeout', action='store_true', 
@@ -74,31 +74,29 @@ def get_config():
     Try to load config from file first, fall back to CLI args if no config found
     or if config is invalid. Respect --noconfig flag.
     """
-    # Parse CLI args first to check for --noconfig
-    args = parse_cli_args()
+    # First check if --noconfig is specified without requiring other arguments
+    args = parse_cli_args(require_args=False)
     
-    # If --noconfig is used, only use CLI args
-    if args.noconfig:
+    if not args.noconfig:
+        print("Attempting to load config.json...")
+        try:
+            config = load_config()
+            if config:
+                print("Successfully loaded configuration from config.json")
+                print(f"Config contents: {config}")
+                return config
+        except ConfigValidationError as e:
+            print(f"Error in config file: {str(e)}")
+        except Exception as e:
+            print(f"Error loading config file: {str(e)}")
+    else:
         print("Using command line arguments (--noconfig specified)")
-        config = vars(args)
-        config.pop('noconfig')  # Remove noconfig from the config dict
-        return config
     
-    try:
-        config = load_config()
-        if config:
-            print("Using configuration from config.json")
-            return config
-    except ConfigValidationError as e:
-        print(f"Error in config file: {str(e)}")
-        print("Falling back to command line arguments...")
-    except Exception as e:
-        print(f"Error loading config file: {str(e)}")
-        print("Falling back to command line arguments...")
-    
-    # Convert CLI args to config dict
+    # If we get here, either --noconfig was used or config loading failed
+    # Now we require CLI arguments
+    args = parse_cli_args(require_args=True)
     config = vars(args)
-    config.pop('noconfig')  # Remove noconfig from the config dict
+    config.pop('noconfig')
     return config
 
 def main():

@@ -219,6 +219,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+- **1.4.4** - fix: Prioritize config.json over CLI arguments
 - **1.4.3** - fix: Path handling in main function (fixed TypeError when processing command line arguments)
 - **1.4.2** - feat: Add --noconfig flag to override config file
 - **1.4.1** - fix: Fixed event listener persistence for arrow key navigation between images

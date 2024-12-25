@@ -56,11 +56,19 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     Returns None if no config file is found.
     """
     if config_path is None:
-        config_path = Path(__file__).parent.parent.parent.parent / 'config.json'
+        # Get the absolute path to the project root directory
+        project_root = Path.cwd()
+        config_path = project_root / 'config.json'
+        import sys
+        sys.stderr.write(f"Looking for config at: {config_path.absolute()}\n")
+        sys.stderr.flush()
     else:
         config_path = Path(config_path)
 
     if not config_path.exists():
+        import sys
+        sys.stderr.write(f"Config file not found at: {config_path}\n")
+        sys.stderr.flush()
         return None
 
     try:
