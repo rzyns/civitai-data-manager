@@ -1,38 +1,6 @@
 # Civitai Data Manager
 
-- [Overview](#-overview)
-- [Demo](#-demo)
-- [Key Benefits](#-key-benefits)
-- [Model Compatibility](#-model-compatibility)
-- [Getting Started](#-getting-started)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
-- [Usage Guide](#-usage-guide)
-  - [Basic Commands](#basic-commands)
-  - [Additional Options](#additional-options)
-  - [Recommended Organization](#recommended-organization)
-  - [Best Practices](#best-practices)
-- [Output Structure](#-output-structure)
-  - [Directory Layout](#directory-layout)
-  - [Missing Models Tracking](#missing-models-tracking)
-- [Features in Detail](#-features-in-detail)
-  - [Rate Limiting Protection](#rate-limiting-protection)
-  - [Update Checking](#update-checking)
-  - [HTML Generation](#html-generation)
-  - [Processed Files Tracking](#processed-files-tracking)
-- [FAQ](#-faq)
-- [Roadmap](#-roadmap)
-- [Changelog](#-changelog)
-- [Additional Information](#-additional-information)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Acknowledgments](#acknowledgments)
-
-## 📄 Overview
-
-A lightweight tool that fetches and saves metadata, description, tags, hashes, and preview images for SafeTensors model files by querying the Civitai API.
-
-It generates interactive HTML pages for easy collection browsing. The tool is especially useful for maintaining model information (trigger words, usage notes, authors) even after models might be removed from Civitai. By creating a local backup of crucial model data, you can ensure your collection remains well-documented and easily accessible regardless of the models' availability online.
+A lightweight tool to locally manage, back up, and organize SafeTensors model metadata from Civitai.
 
 ## 🖥️ Demo
 
@@ -40,25 +8,13 @@ It generates interactive HTML pages for easy collection browsing. The tool is es
 
 <!-- <div style="text-align:center;"><a href="https://win3ry.com/projects/civitai/">Demo</a></div> -->
 
-## ✨ Key Benefits
+## ✨ Features
 
-- **Protect Key Information**: Models may be removed from Civitai, making it crucial to back up their usage instructions for future reference.
-- **Save Trigger Words**: Preserve Lora trigger words even if the associated model is no longer available on Civitai.
-- **Minimalistic Tool**: A free, straightforward and lightweight solution that doesn't require using an API key.
-- **Organize Model Details**: Keep track of model authors, versions, and usage examples for easy reference.
-- **Monitor Unavailable Models**: Maintain a record of models you own that have been removed from Civitai.
-- **Track Renamed Models**: Find models downloaded from Civitai, even if the file has been renamed.
-- **Smart Updates**: Updates only occur for models with new information on Civitai, keeping the process efficient.
-- **Generation Example**: Save the prompts and generation details for all the Loras/checkpoints' preview images.
-
-## 🔄 Model Compatibility
-
-Works with all `.safetensors` files available on Civitai:
-- Checkpoints
-- LoRA, LyCORIS, DoRA
-- Control Net models (SafeTensor)
-- Embeddings
-- ...
+- **📂 Backup Crucial Info**: Save model metadata, trigger words, usage notes, examples and authors.
+- **🖼️ HTML Browser**: Generate interactive HTML pages for browsing your collection.
+- **🚀 Smart Updates**: Update only when new data is available.
+- **✔️ Broad Compatibility**: Supports `.safetensors` models on Civitai (Checkpoints, LoRA, LyCORIS, etc.).
+- **🔒 Lightweight & Free**: No API key required, and highly efficient.
 
 ## 🚀 Getting Started
 
@@ -98,7 +54,7 @@ You should see the available command-line options displayed.
 
 You have two ways to use this tool: using a config.json file or options arguments.
 
-### Configuration File
+### Configuration File (Recommended)
 
 Edit the `config.json` file in the script directory with your preferred settings. If present, the config file takes precedence over command-line arguments.
 
@@ -120,80 +76,38 @@ Examples of configuration are located in the `config_examples` directory.
   python main.py
 - To update with the data from newly added models, run periodically to catch updates with the update config (file present in `/config_examples/config.update.json`)
 
-### All Options
-
-All these options can be used in the `config.json` file.
-
-- `--single`: Specify a single input file
+### Command Options
+#### Input and Output:
+- `--single`: Process a single model file:
   ```bash
   python main.py --single "path/to/model.safetensors"
   ```
-  
-- `--all`: Specify an input directory of models
+- `--all`: Process all models in a directory:
   ```bash
   python main.py --all "path/to/model/directory"
   ```
-
-- `--output`: Specify output directory
+- `--output`: Set an output directory:
   ```bash
-  python main.py --single "path/to/model.safetensors" --output "path/to/output"
-  ```
-  If not provided, the script will prompt you to enter the output directory path.
-
-- `--notimeout`: Disable rate limiting protection (use with caution)
-  ```bash
-  python main.py --all "path/to/model/directory" --notimeout
+  python main.py --all "path/to/models" --output "path/to/output"
   ```
 
-- `--images`: Download all preview images for the models
-  ```bash
-  python main.py --all "path/to/model/directory" --images
-  ```
-  If this flag is not provided, the script will only download the first preview image.
+#### Image Options:
+- `--images`: Download all preview images.
+- `--noimages`: Skip downloading preview images.
+- `--generateimagejson`: Create JSON metadata for preview images.
 
-- `--generateimagejson`: Generate JSON files for all preview images from existing model version data
-  ```bash
-  python main.py --all "" --output "path/to/directory" --generateimagejson
-  ```
-  This option is implemented only for data generated before script version 1.3.0
+#### Processing Options:
+- `--onlynew`: Process only new files.
+- `--skipmissing`: Skip previously missing models.
+- `--onlyupdate`: Update metadata for processed models.
+- `--clean`: Remove data for models no longer in the source directory.
 
-- `--noimages`: Disable downloading of preview images
-  ```bash
-  python main.py --all "path/to/model/directory" --noimages
-  ```
+#### HTML Generation:
+- `--onlyhtml`: Generate HTML files from existing data only.
 
-- `--onlynew`: Only process new files that haven't been processed before
-  ```bash
-  python main.py --all "path/to/model/directory" --onlynew
-  ```
-
-- `--skipmissing`: Skip previously missing models when used with `--onlynew`
-  ```bash
-  python main.py --all "path/to/model/directory" --onlynew --skipmissing
-  ```
-  If this flag is not provided, the script will always check for previously missing models.
-
-- `--onlyupdate`: Only update metadata for processed models
-  ```bash
-  python main.py --all "path/to/model/directory" --onlyupdate
-  ```
-
-- `--onlyhtml`: Generate HTML files from existing data without fetching from Civitai
-  ```bash
-  python main.py --all "path/to/model/directory" --onlyhtml
-  ```
-  This option skips all API calls and only generates/updates HTML files.
-  
-- `--clean`: Remove data for models that no longer exist in source directory
-  ```bash
-  python main.py --all "path/to/model/directory" --clean
-  ```
-
--  `--noconfig`: Ignore config.json and use command line arguments only
-  ```bash
-  python main.py --all "path/to/model/directory" --images --noconfig
-  ```
-  This flag is helpful to debug or test configurations without removing the `config.json` file.
+#### Advanced Options:
+- `--noconfig`: Ignore `config.json` and use only command-line arguments.
+- `--notimeout`: Disable rate limiting protection (use cautiously).
 
 
 ### Recommended Organization
@@ -212,7 +126,7 @@ python main.py --all "path/to/loras/flux" --output "path/to/backup/loras/flux" -
 
 ### Best Practices
 
-- If you want to update only the Civitai data, use the options `onlyupdate` and `noimages`
+- If you want to update only the Civitai data, use the options `--onlyupdate` and `--noimages`
 - Just in case, always back up the generated data directory with your models
 - Monitor `missing_from_civitai.txt` and `duplicate_models.txt` for manual documentation needs
 
@@ -236,33 +150,6 @@ output_directory/
 ├── missing_from_civitai.txt                  # List of models not found on Civitai
 ├── duplicate_models.txt                      # List of duplicate models
 └── processed_files.json                      # List of processed files
-```
-
-### Missing Models Tracking
-
-Format in `missing_from_civitai.txt`:
-```
-# Files not found on Civitai
-# Format: Timestamp | Status Code | Filename
-# This file is automatically updated when the script runs
-# A file is removed from this list when it becomes available again
-
-2024-11-06 15:53:56 | Status 404 | model1.safetensors
-2024-11-06 15:50:39 | Status 404 | model2.safetensors
-```
-
-### Duplicate Models Tracking
-
-Format in `duplicate_models.txt`:
-```
-# Duplicate models found in input directory
-# Format: Hash | Kept Model | Removed Duplicates
-# This file is automatically updated when running --clean
-
-Hash: <hash>
-Kept: <path>\model.safetensors
-Removed:
-  - <path>\model-2.safetensors
 ```
 
 ## 🔍 Features in Detail
@@ -326,7 +213,6 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 
 ### Misc.
-- **Clean README.md**: The successive additions have made the README a bit messy.
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1).
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
@@ -362,4 +248,4 @@ Feel free to open issues or submit pull requests with improvements.
 [MIT License](LICENSE.md)
 
 ### Acknowledgments
-In accordance with Civitai's Terms of Service, this tool adheres to the restriction of not accessing, searching, or utilizing any part of the service through unauthorized engines, software, or tools. It only uses the search agents provided by Civitai through their official open [API](https://github.com/civitai/civitai/wiki/REST-API-Reference), ensuring full compliance with the terms.
+In accordance with Civitai's Terms of Service, this tool adheres to the restriction of not accessing, searching, or utilizing any part of the service through unauthorized engines, software, or tools. It only uses the search agents provided by Civitai through their [official open API](https://github.com/civitai/civitai/wiki/REST-API-Reference), ensuring full compliance with the terms.
