@@ -8,7 +8,9 @@ from datetime import datetime
 import time
 import random
 
+    
 from ..utils.file_tracker import ProcessedFilesManager
+from ..utils.string_utils import sanitize_filename
 from ..utils.html_generators.model_page import generate_html_summary
 
 try:
@@ -18,7 +20,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.4.4"
+VERSION = "1.5.0"
 
 def get_output_path(clean=False):
     """
@@ -57,7 +59,7 @@ def get_output_path(clean=False):
             continue
             
         return path
-    
+
 def setup_export_directories(base_path, safetensors_path):
     """
     Create dated export directory and model-specific subdirectory
@@ -75,8 +77,9 @@ def setup_export_directories(base_path, safetensors_path):
     # dated_dir = base_path / f"safetensors-export-{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
     # dated_dir.mkdir(exist_ok=True)
     
-    # Create model-specific directory using the safetensors filename
-    model_dir = base_path / safetensors_path.stem
+    # Create model-specific directory using sanitized safetensors filename
+    sanitized_name = sanitize_filename(safetensors_path.stem)
+    model_dir = base_path / sanitized_name
     model_dir.mkdir(exist_ok=True)
     
     return model_dir
@@ -111,7 +114,7 @@ def extract_metadata(file_path, output_dir):
         if path.suffix != '.safetensors':
             raise ValueError("File must have .safetensors extension")
         
-        base_name = path.stem
+        base_name = sanitize_filename(path.stem)
         metadata_path = output_dir / f"{base_name}_metadata.json"
         
         # Read just the first line for metadata
@@ -161,7 +164,7 @@ def extract_hash(file_path, output_dir):
             raise FileNotFoundError(f"File {path} not found")
         
         hash_value = calculate_sha256(path)
-        base_name = path.stem  # Gets filename without extension
+        base_name = sanitize_filename(path.stem)  # Gets sanitized filename without extension
         hash_path = output_dir / f"{base_name}_hash.json"
         
         # Create hash JSON object
@@ -213,8 +216,9 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
             # Get the extension from the URL
             # image_name = url_parts[-1]
             ext = '.mp4' if is_video else Path(url_parts[-1]).suffix
-            # Add index to filename if provided
-            image_filename = f"{base_name}_preview{f'_{index}' if index is not None else ''}{ext}"
+            # Add index to sanitized filename if provided
+            sanitized_base = sanitize_filename(base_name)
+            image_filename = f"{sanitized_base}_preview{f'_{index}' if index is not None else ''}{ext}"
             image_path = output_dir / image_filename
             
             # Download and save the image
@@ -493,7 +497,7 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
         print(civitai_url)
         
         response = requests.get(civitai_url)
-        base_name = safetensors_path.stem
+        base_name = sanitize_filename(safetensors_path.stem)
         civitai_path = output_dir / f"{base_name}_civitai_model_version.json"
         
         if response.status_code == 200:
@@ -562,7 +566,7 @@ def fetch_model_details(model_id, output_dir, safetensors_path):
         print(civitai_model_url)
         
         response = requests.get(civitai_model_url)
-        base_name = safetensors_path.stem
+        base_name = sanitize_filename(safetensors_path.stem)
         model_data_path = output_dir / f"{base_name}_civitai_model.json"
         
         with open(model_data_path, 'w', encoding='utf-8') as f:

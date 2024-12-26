@@ -1,5 +1,6 @@
 import json
 import html
+from ..string_utils import sanitize_filename
 from datetime import datetime
 
 def generate_html_summary(output_dir, safetensors_path, VERSION):
@@ -12,7 +13,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         VERSION (str): Version of the script
     """
     try:
-        base_name = safetensors_path.stem
+        base_name = sanitize_filename(safetensors_path.stem)
         model_path = output_dir / f"{base_name}_civitai_model.json"
         version_path = output_dir / f"{base_name}_civitai_model_version.json"
         hash_path = output_dir / f"{base_name}_hash.json"
@@ -20,9 +21,9 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         
         # Find all preview images
         preview_images = sorted(output_dir.glob(f"{base_name}_preview*.jpg")) + \
-                        sorted(output_dir.glob(f"{base_name}_preview*.jpeg")) + \
-                        sorted(output_dir.glob(f"{base_name}_preview*.png")) + \
-                        sorted(output_dir.glob(f"{base_name}_preview*.mp4"))
+                         sorted(output_dir.glob(f"{base_name}_preview*.jpeg")) + \
+                         sorted(output_dir.glob(f"{base_name}_preview*.png")) + \
+                         sorted(output_dir.glob(f"{base_name}_preview*.mp4"))
 
         
         # Check if all required files exist

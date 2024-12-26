@@ -1,4 +1,6 @@
 from pathlib import Path
+import html
+from ..string_utils import sanitize_filename
 import json
 from datetime import datetime
 
@@ -105,10 +107,12 @@ def generate_global_summary(output_dir, VERSION):
             # Create model cards first
             model_cards = []
             for model in models:
+                sanitized_base = sanitize_filename(model["base_name"])
+                html_name = f"{sanitized_base}.html"
                 model_name = (
-                    f'<a href="{model["base_name"]}/{model["html_file"]}">{model["name"]}</a>'
+                    f'<a href="{sanitized_base}/{html_name}">{html.escape(model["name"])}</a>'
                     if model.get('has_html', False) or not model.get('missing')
-                    else '<span class="missing-model">' + model['name'] + '</span>'
+                    else '<span class="missing-model">' + html.escape(model['name']) + '</span>'
                 )
                 
                 dates_section = ''
@@ -131,12 +135,15 @@ def generate_global_summary(output_dir, VERSION):
                 
                 tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
                 
+                sanitized_base_name = sanitize_filename(model['base_name'])
+                preview_path = f"{sanitized_base_name}/{sanitized_base_name}_preview_0.jpeg"
+                
                 card_html = f"""
                     <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" 
                     data-tags="{','.join(model['tags']).lower()}"
                     data-name="{model['name'].lower()}"
                     data-filename="{model['base_name'].lower()}">
-                        <img class="model-cover" src="{model['base_name']}/{model['base_name']}_preview_0.jpeg" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
+                        <img class="model-cover" src="{preview_path}" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
                         <h3>{model_name}</h3>
                         <small class="version-name">{model.get('version_name', '')}</small>
                         <div>by {model['creator']}</div>

@@ -204,20 +204,21 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 ## 🛣️ Roadmap
 
 ### Features
-- **🔥 Manual model page**: Add a way for users to add manually (via json file and directory scan) - useful if a model was never available on Civitai but downloaded elsewhere
+- **🔥 Manual model page**: Add a way for users to add manually (via json file and directory scan) - useful if a model was never available on Civitai but downloaded elsewhere.
+- **Handling multiple config.json**: Best way to be 100% efficient for testing and multiple use cases.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser (in the future config file).
 - **Filters**: Add option to filter models by Author or Base Model.
 - **Dark Mode**: Integrate dark mode in the templates.
-
-### Fixes
-- **Special Model Names**: Fix the broken link when model's name has special characters (like `[FLUX.1 [dev] - LoRa] [Style] 'True Real Photography' [SPECTRUM #0001]`)
 
 ### Misc.
 - **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1).
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
+- **Code refactor**: Clean and move some functions to utils file.
 
 ## 📜 Changelog
+
+- **1.5.0** - fix: Improve filename handling
 
 - **1.4.4** - fix: Prioritize config.json over CLI arguments
 - **1.4.3** - fix: Path handling in main function (fixed TypeError when processing command line arguments)
