@@ -4,9 +4,7 @@ A lightweight tool to locally manage, back up, and organize SafeTensors model me
 
 ## 🖥️ Demo
 
-![Civitai Data Manager Demo](https://i.imgur.com/jKXxX4S.gif)
-
-<!-- <div style="text-align:center;"><a href="https://win3ry.com/projects/civitai/">Demo</a></div> -->
+![Civitai Data Manager Demo](https://i.imgur.com/FfmROxQ.gif)
 
 ## ✨ Features
 
