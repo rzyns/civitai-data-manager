@@ -33,12 +33,13 @@ def generate_global_summary(output_dir, VERSION):
         
         for model_file in model_files:
             try:
-                # Get paths for both model and version files
+                # Get paths for model, version, and hash files
                 base_name = model_file.parent.name
                 version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
+                hash_file = model_file.parent / f"{base_name}_hash.json"
                 html_file = model_file.parent / f"{base_name}.html"
         
-                # Read both files
+                # Read all files
                 with open(model_file, 'r', encoding='utf-8') as f:
                     model_data = json.load(f)
 
@@ -46,6 +47,11 @@ def generate_global_summary(output_dir, VERSION):
                 if version_file.exists():
                     with open(version_file, 'r', encoding='utf-8') as f:
                         version_data = json.load(f)
+                        
+                hash_data = {}
+                if hash_file.exists():
+                    with open(hash_file, 'r', encoding='utf-8') as f:
+                        hash_data = json.load(f)
 
                 model_type = model_data.get('type', 'Unknown')
                 
@@ -62,7 +68,8 @@ def generate_global_summary(output_dir, VERSION):
                     # Add version data
                     'version_name': version_data.get('name', ''),
                     'downloads': version_data.get('stats', {}).get('downloadCount', 0),
-                    'has_html': html_file.exists()
+                    'has_html': html_file.exists(),
+                    'added_date': hash_data.get('timestamp', '')
                 })
             except:
                 continue
@@ -142,7 +149,10 @@ def generate_global_summary(output_dir, VERSION):
                     <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" 
                     data-tags="{','.join(model['tags']).lower()}"
                     data-name="{model['name'].lower()}"
-                    data-filename="{model['base_name'].lower()}">
+                    data-creator="{model['creator'].lower()}"
+                    data-downloads="{model['downloads']}"
+                    data-filename="{model['base_name'].lower()}"
+                    data-added-date="{model.get('added_date', '')}">
                         <img class="model-cover" src="{preview_path}" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
                         <h3>{model_name}</h3>
                         <small class="version-name">{model.get('version_name', '')}</small>
@@ -201,13 +211,31 @@ def generate_global_summary(output_dir, VERSION):
             text-align: center;
             margin-bottom: 30px;
         }}
+        .controls {{
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }}
         .search-box {{
-            width: 80%;
+            width: 400px;
             padding: 10px;
             font-size: 16px;
             border: 2px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 10px;
+        }}
+        .sort-select {{
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            cursor: pointer;
+        }}
+        .sort-select:hover {{
+            border-color: #3498db;
         }}
         .models-grid {{
             display: grid;
@@ -227,14 +255,14 @@ def generate_global_summary(output_dir, VERSION):
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }}
         .model-card.processed {{
-            min-height: 200px; /* Only apply min-height to processed cards */
+            min-height: 200px;
         }}
         .model-card.missing {{
             background-color: #fff3f3;
             border: 1px solid #ffcdd2;
         }}
         .model-cover {{
-            display: none; /* Hidden by default */
+            display: none;
             width: 100%;
             height: 400px;
             object-fit: cover;
@@ -246,7 +274,7 @@ def generate_global_summary(output_dir, VERSION):
             display: block;
         }}
         .toggle-button {{
-            padding: 8px 16px;
+            padding: 14px 16px;
             background-color: #3498db;
             color: white;
             border: none;
@@ -311,8 +339,18 @@ def generate_global_summary(output_dir, VERSION):
             <br />
             <h2>({total_models} models)</h2>
 
-            <input type="text" class="search-box" id="searchBox" placeholder="Search by name, filename, or tags (comma separated)...">
-            <div class="view-options">
+            <div class="controls">
+                <input type="text" class="search-box" id="searchBox" placeholder="Search by name, filename, or tags (comma separated)...">
+                <select id="sortSelect" class="sort-select">
+                    <option value="date-desc">Date Added (Newest First)</option>
+                    <option value="date-asc">Date Added (Oldest First)</option>
+                    <option value="downloads-desc">Downloads (High to Low)</option>
+                    <option value="downloads-asc">Downloads (Low to High)</option>
+                    <option value="name-asc">Name (A to Z)</option>
+                    <option value="name-desc">Name (Z to A)</option>
+                    <option value="creator-asc">Creator (A to Z)</option>
+                    <option value="creator-desc">Creator (Z to A)</option>
+                </select>
                 <button id="toggleCovers" class="toggle-button">Show Covers</button>
             </div>
         </div>
@@ -329,6 +367,51 @@ def generate_global_summary(output_dir, VERSION):
         // Search box
         const searchBox = document.getElementById('searchBox');
         const modelCards = document.querySelectorAll('.model-card');
+        const sortSelect = document.getElementById('sortSelect');
+
+        function sortCards() {{
+            const [sortKey, sortDir] = sortSelect.value.split('-');
+            const sections = document.querySelectorAll('.type-section');
+            
+            sections.forEach(section => {{
+                const cards = Array.from(section.querySelectorAll('.model-card:not(.hidden)'));
+                
+                cards.sort((a, b) => {{
+                    let aVal, bVal;
+                    
+                    switch(sortKey) {{
+                        case 'date':
+                            aVal = a.dataset.addedDate || '';
+                            bVal = b.dataset.addedDate || '';
+                            break;
+                        case 'downloads':
+                            aVal = parseInt(a.dataset.downloads) || 0;
+                            bVal = parseInt(b.dataset.downloads) || 0;
+                            break;
+                        case 'name':
+                            aVal = a.dataset.name;
+                            bVal = b.dataset.name;
+                            break;
+                        case 'creator':
+                            aVal = a.dataset.creator;
+                            bVal = b.dataset.creator;
+                            break;
+                        default:
+                            return 0;
+                    }}
+                    
+                    if (sortDir === 'asc') {{
+                        return aVal > bVal ? 1 : -1;
+                    }} else {{
+                        return aVal < bVal ? 1 : -1;
+                    }}
+                }});
+                
+                const grid = section.querySelector('.models-grid');
+                cards.forEach(card => grid.appendChild(card));
+            }});
+        }}
+
         searchBox.addEventListener('input', function() {{
             const searchTerms = searchBox.value.toLowerCase().split(',').map(term => term.trim()).filter(term => term);
             
@@ -363,7 +446,16 @@ def generate_global_summary(output_dir, VERSION):
                 const visibleCards = section.querySelectorAll('.model-card:not(.hidden)').length;
                 section.style.display = visibleCards > 0 ? 'block' : 'none';
             }});
+            
+            // Re-sort visible cards
+            sortCards();
         }});
+
+        // Sort functionality
+        sortSelect.addEventListener('change', sortCards);
+        
+        // Initial sort
+        sortCards();
 
         // Image covers toggle
         const toggleButton = document.getElementById('toggleCovers');

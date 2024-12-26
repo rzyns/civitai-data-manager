@@ -207,7 +207,6 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **🔥 Manual model page**: Add a way for users to add manually (via json file and directory scan) - useful if a model was never available on Civitai but downloaded elsewhere.
 - **Handling multiple config.json**: Best way to be 100% efficient for testing and multiple use cases.
 - **File Sorting**: Add option to select the default type of sorting in the generated browser (in the future config file).
-- **Filters**: Add option to filter models by Author or Base Model.
 - **Dark Mode**: Integrate dark mode in the templates.
 
 ### Misc.
@@ -218,6 +217,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+- **1.5.1** - 🔥 feat: Add sorting options to browser page
 - **1.5.0** - fix: Improve filename handling
 
 - **1.4.4** - fix: Prioritize config.json over CLI arguments
