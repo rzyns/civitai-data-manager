@@ -20,7 +20,7 @@ except ImportError:
     print("pip install requests")
     sys.exit(1)
 
-VERSION = "1.5.1"
+VERSION = "1.5.2"
 
 def get_output_path(clean=False):
     """
@@ -676,7 +676,7 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
     
     if html_only:
         # Check if required files exist
-        base_name = safetensors_path.stem
+        base_name = sanitize_filename(safetensors_path.stem)
         required_files = [
             model_output_dir / f"{base_name}_civitai_model.json",
             model_output_dir / f"{base_name}_civitai_model_version.json",

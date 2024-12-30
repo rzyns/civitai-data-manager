@@ -208,13 +208,13 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 - **Dark Mode**: Integrate dark mode in the templates.
 
 ### Misc.
-- **GitHub**: Update GitHub demo and video preview (the current ones are from version 1.1).
 - **Implement Logging**: Add better logging functionality to improve tracking and debugging.
 - **Add Progress Tracking**: Integrate a progress bar to display the status of file processing.
 - **Code refactor**: Clean and move some functions to utils file.
 
 ## 📜 Changelog
 
+- **1.5.2** - feat: Add migration script for filename sanitization (fix breaking changes from v1.5.0)
 - **1.5.1** - 🔥 feat: Add sorting options to browser page
 - **1.5.0** - fix: Improve filename handling
 
