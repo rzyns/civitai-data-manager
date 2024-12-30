@@ -43,6 +43,8 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             # Get stats data
             model_version = next((version for version in model_data["modelVersions"] if version["id"] == version_data.get('id')), None)
             stats = model_version.get('stats', {})
+            fileSizeKB = model_version.get('files', [{}])[0].get('sizeKB', None)
+            fileSizeMB = fileSizeKB / 1024
             
             # Generate image gallery HTML
             gallery_html = ""
@@ -477,6 +479,9 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 
             <div class="label">SHA256 Hash:</div>
             <div class="value" style="word-break: break-all;">{hash_data.get('hash_value', 'N/A')}</div>
+
+            <div class="label">File size:</div>
+            <div class="value" style="word-break: break-all;">{round(fileSizeMB, 2)} MB</div>
         </div>
 
         <div class="section">

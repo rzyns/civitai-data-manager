@@ -69,7 +69,8 @@ def generate_global_summary(output_dir, VERSION):
                     'version_name': version_data.get('name', ''),
                     'downloads': version_data.get('stats', {}).get('downloadCount', 0),
                     'has_html': html_file.exists(),
-                    'added_date': hash_data.get('timestamp', '')
+                    'added_date': hash_data.get('timestamp', ''),
+                    'file_size': version_data.get('files', [{}])[0].get('sizeKB', None)
                 })
             except:
                 continue
@@ -136,6 +137,10 @@ def generate_global_summary(output_dir, VERSION):
                 if not model.get('missing'):
                     downloads_section = f'<div class="downloads">Downloads: {model["downloads"]:,}</div>'
                 
+                filesize_section = ''
+                if model.get('file_size'):
+                    filesize_section = f'<div class="file-size">Size: {model.get('file_size', 0)/1024:.2f} MB</div>'
+                
                 trained_words_section = ''
                 if model.get('trainedWords'):
                     trained_words_section = f'<div class="trained-words">{", ".join(model["trainedWords"])}</div>'
@@ -152,6 +157,7 @@ def generate_global_summary(output_dir, VERSION):
                     data-creator="{model['creator'].lower()}"
                     data-downloads="{model['downloads']}"
                     data-filename="{model['base_name'].lower()}"
+                    data-raw-size="{model.get('file_size', 0)}"
                     data-added-date="{model.get('added_date', '')}">
                         <img class="model-cover" src="{preview_path}" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
                         <h3>{model_name}</h3>
@@ -159,6 +165,7 @@ def generate_global_summary(output_dir, VERSION):
                         <div>by {model['creator']}</div>
                         {base_model_section}
                         {downloads_section}
+                        {filesize_section}
                         {dates_section}
                         <div class="tags">
                             {tags_html}
@@ -294,6 +301,10 @@ def generate_global_summary(output_dir, VERSION):
         .downloads {{
             color: #666;
             font-size: 0.9em;
+        }}
+        .file-size {{
+            color: #666;
+            font-size: 0.9em;
             margin-bottom: 10px;
         }}
         .tags {{
@@ -350,6 +361,8 @@ def generate_global_summary(output_dir, VERSION):
                     <option value="name-desc">Name (Z to A)</option>
                     <option value="creator-asc">Creator (A to Z)</option>
                     <option value="creator-desc">Creator (Z to A)</option>
+                    <option value="size-asc">File size (Small to Large)</option>
+                    <option value="size-desc">File size (Large to Small)</option>
                 </select>
                 <button id="toggleCovers" class="toggle-button">Show Covers</button>
             </div>
@@ -395,6 +408,10 @@ def generate_global_summary(output_dir, VERSION):
                         case 'creator':
                             aVal = a.dataset.creator;
                             bVal = b.dataset.creator;
+                            break;
+                        case 'size':
+                            aVal = parseFloat(a.dataset.rawSize) || 0;
+                            bVal = parseFloat(b.dataset.rawSize) || 0;
                             break;
                         default:
                             return 0;
