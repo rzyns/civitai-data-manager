@@ -214,6 +214,7 @@ This tool stands out for its simplicity and lightweight design. It requires no c
 
 ## 📜 Changelog
 
+- **1.5.4** - feat: Persist sort preference in localStorage
 - **1.5.3** - feat: Add file size display and sorting
 - **1.5.2** - feat: Add migration script for filename sanitization (fix breaking changes from v1.5.0)
 - **1.5.1** - 🔥 feat: Add sorting options to browser page

@@ -471,8 +471,18 @@ def generate_global_summary(output_dir, VERSION):
         // Sort functionality
         sortSelect.addEventListener('change', sortCards);
         
+        // Load saved sort preference
+        const savedSort = localStorage.getItem('sortPreference') || 'date-desc';
+        sortSelect.value = savedSort;
+        
         // Initial sort
         sortCards();
+
+        // Save sort preference when changed
+        sortSelect.addEventListener('change', function() {{
+            localStorage.setItem('sortPreference', this.value);
+            sortCards();
+        }});
 
         // Image covers toggle
         const toggleButton = document.getElementById('toggleCovers');
