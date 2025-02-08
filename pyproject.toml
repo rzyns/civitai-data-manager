@@ -1,0 +1,30 @@
+[project]
+name = "civitai-manager"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.10.6",
+    "requests>=2.32.3",
+    "typed-argparse>=0.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.26.0",
+    "ipython>=8.32.0",
+    "pytest>=8.3.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.basedpyright]
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+]
+ignore = ["src/civitai_manager/migrations"]

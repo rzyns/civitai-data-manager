@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import os
 from pathlib import Path
 import json
@@ -5,24 +6,30 @@ import sys
 import hashlib
 import shutil
 from datetime import datetime
+from textwrap import dedent
 import time
 import random
+from typing import cast
 
-    
+import pydantic
+
+import civitai
+from civitai_manager.utils.config import Config
+from data import HashData, ModelData
+from file_types import CivitaiVersionFileTA, HashFileDataTA, StoredFile
+
 from ..utils.file_tracker import ProcessedFilesManager
 from ..utils.string_utils import sanitize_filename
 from ..utils.html_generators.model_page import generate_html_summary
 
-try:
-    import requests
-except ImportError:
-    print("Error: 'requests' module not found. Please install it using:")
-    print("pip install requests")
-    sys.exit(1)
+import requests
 
 VERSION = "1.5.4"
 
-def get_output_path(clean=False):
+def json_serialize(obj: object) -> bytes:
+    return pydantic.TypeAdapter(object).dump_json(obj, indent=4)
+
+def get_output_path(clean: bool=False):
     """
     Get output path from user and create necessary directories.
     If no path is provided (empty input), use current directory.
@@ -55,12 +62,12 @@ def get_output_path(clean=False):
                 continue
         
         if not os.access(path, os.W_OK):
-            print("Error: No write permission for this directory")
+            raise Exception(f"Error: No write permission for this directory ({path})")
             continue
             
         return path
 
-def setup_export_directories(base_path, safetensors_path):
+def setup_export_directories(base_path: Path, safetensors_path: Path):
     """
     Create dated export directory and model-specific subdirectory
     
@@ -84,10 +91,12 @@ def setup_export_directories(base_path, safetensors_path):
     
     return model_dir
 
-def calculate_sha256(file_path, buffer_size=65536):
+def calculate_sha256(file_path: Path, buffer_size: int=65536, offset: int=0):
     """Calculate SHA256 hash of a file"""
     sha256_hash = hashlib.sha256()
     with open(file_path, 'rb') as f:
+        if offset:
+            _ = f.seek(offset)
         while True:
             data = f.read(buffer_size)
             if not data:
@@ -95,59 +104,70 @@ def calculate_sha256(file_path, buffer_size=65536):
             sha256_hash.update(data)
     return sha256_hash.hexdigest()
 
-def extract_metadata(file_path, output_dir):
+def extract_metadata(file_path: Path, output_dir: Path) -> tuple[str, dict[str, pydantic.JsonValue] | None]:
     """
     Extract metadata from a .safetensors file
     
     Args:
         file_path (str): Path to the .safetensors file
         output_dir (Path): Directory to save the output
-    Returns:
-        bool: True if successful, False otherwise
     """
-    try:
-        path = Path(file_path)
+    path = Path(file_path)
+    
+    if not path.exists():
+        raise FileNotFoundError(f"File {path} not found")
+    
+    if path.suffix != '.safetensors':
+        raise ValueError("File must have .safetensors extension")
+    
+    base_name = sanitize_filename(path.stem)
+    metadata_path = output_dir / f"{base_name}_metadata.json"
+    
+    # Read just the first line for metadata
+    with open(path, 'rb') as f:
+        # Read header length (8 bytes, little-endian)
+        header_length = int.from_bytes(f.read(8), 'little')
         
-        if not path.exists():
-            raise FileNotFoundError(f"File {path} not found")
-        
-        if path.suffix != '.safetensors':
-            raise ValueError("File must have .safetensors extension")
-        
-        base_name = sanitize_filename(path.stem)
-        metadata_path = output_dir / f"{base_name}_metadata.json"
-        
-        # Read just the first line for metadata
-        with open(path, 'rb') as f:
-            # Read header length (8 bytes, little-endian)
-            header_length = int.from_bytes(f.read(8), 'little')
-            
-            # Read the header
-            header_bytes = f.read(header_length)
-            header_str = header_bytes.decode('utf-8')
-            
-            try:
-                # Parse the JSON header
-                header_data = json.loads(header_str)
-                
-                # Write metadata to JSON file
-                with open(metadata_path, 'w', encoding='utf-8') as f:
-                    if "__metadata__" in header_data:
-                        json.dump(header_data["__metadata__"], f, indent=4)
-                    else:
-                        json.dump(header_data, f, indent=4)
-                print(f"Metadata successfully extracted to {metadata_path}")
-                return True
-                
-            except json.JSONDecodeError:
-                print("Error: Could not parse metadata JSON")
-                return False
-                
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return False
+        # Read the header
+        header_bytes = f.read(header_length)
+        header_str = header_bytes.decode('utf-8')
 
-def extract_hash(file_path, output_dir):
+        hash_value: str | None = None
+
+        offset: int = 8 + header_length
+
+        try:
+            # Parse the JSON header
+            header_data = civitai.SafetensorsHeaderTA.validate_json(header_str)
+
+            if "__metadata__" in header_data:
+                # Extract hash value if it exists
+                _v = header_data["__metadata__"].get("modelspec.hash_sha256", None)
+                if isinstance(_v, str):
+                    hash_value = _v[2:]
+            
+            # Write metadata to JSON file
+            with open(metadata_path, 'w', encoding='utf-8') as f:
+                if "__metadata__" in header_data:
+                    _ = f.buffer.write(json_serialize(header_data["__metadata__"]))
+                else:
+                    _ = f.buffer.write(json_serialize(header_data))
+            print(f"Safetensors metadata successfully extracted to {metadata_path}")
+
+        except json.JSONDecodeError as e:
+            print("Error: Could not parse metadata JSON", e)
+            if not hash_value:
+                hash_value = calculate_sha256(file_path, offset=offset)
+            return ( hash_value, None )
+
+    if not hash_value:
+        hash_value = calculate_sha256(file_path, offset)
+
+    _ = write_hash_file(output_dir, path, hash_value)
+    return ( hash_value, header_data['__metadata__'] )
+
+
+def write_hash_file(output_dir: Path, safetensors_file: Path, hash_value: str):
     """
     Calculate hash of a .safetensors file and save it as JSON
     
@@ -158,35 +178,32 @@ def extract_hash(file_path, output_dir):
         str: Hash value if successful, None otherwise
     """
     try:
-        path = Path(file_path)
+        if not safetensors_file.exists():
+            raise FileNotFoundError(f"File {safetensors_file} not found")
         
-        if not path.exists():
-            raise FileNotFoundError(f"File {path} not found")
-        
-        hash_value = calculate_sha256(path)
-        base_name = sanitize_filename(path.stem)  # Gets sanitized filename without extension
-        hash_path = output_dir / f"{base_name}_hash.json"
+        base_name = sanitize_filename(safetensors_file.stem)  # Gets sanitized filename without extension
+        hash_path = output_dir.joinpath(f"{base_name}_hash.json")
         
         # Create hash JSON object
-        hash_data = {
+        hash_data = HashFileDataTA.validate_python({
             "hash_type": "SHA256",
             "hash_value": hash_value,
-            "filename": path.name,
+            "filename": safetensors_file.name,
             "timestamp": datetime.now().isoformat()
-        }
+        })
         
         # Write hash to JSON file
         with open(hash_path, 'w', encoding='utf-8') as f:
-            json.dump(hash_data, f, indent=4)
+            _ = f.buffer.write(HashFileDataTA.dump_json(hash_data, indent=4))
         print(f"Hash successfully saved to {hash_path}")
         
         return hash_value
         
     except Exception as e:
-        print(f"Error: {str(e)}")
+        raise Exception(f"Error: {str(e)}") from e
         return None
     
-def download_preview_image(image_url, output_dir, base_name, index=None, is_video=False, image_data=None):
+def download_preview_image(image_url: str, output_dir: Path, base_name: str, index: int | None=None, is_video: bool=False, image_data: civitai.ModelVersionImage | None=None):
     """
     Download a preview image from Civitai
     
@@ -205,10 +222,10 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
         # Remove the width parameter to get full size image
         url_parts = image_url.split('/')
         if 'width=' in url_parts[-2]:
-            url_parts.pop(-2)
+            _ = url_parts.pop(-2)
         full_size_url = '/'.join(url_parts)
         
-        print(f"\nDownloading preview image:")
+        print("\nDownloading preview image:")
         print(f"URL: {full_size_url}")
         
         response = requests.get(full_size_url, stream=True)
@@ -223,16 +240,16 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
             
             # Download and save the image
             with open(image_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                for chunk in cast(Iterable[bytes], response.iter_content(chunk_size=8192)):
                     if chunk:
-                        f.write(chunk)
+                        _ = f.write(chunk)
 
             # Download and save the metadata associated with the image
             if image_data:
                 json_filename = f"{Path(image_filename).stem}.json"
                 json_path = output_dir / json_filename
                 with open(json_path, 'w', encoding='utf-8') as f:
-                    json.dump(image_data, f, indent=4)
+                    _ = f.write(image_data.model_dump_json(indent=4))
 
             print(f"Preview image successfully saved to {image_path}")
             return True
@@ -241,10 +258,10 @@ def download_preview_image(image_url, output_dir, base_name, index=None, is_vide
             return False
             
     except Exception as e:
-        print(f"Error downloading preview image: {str(e)}")
+        raise Exception(f"Error downloading preview image: {str(e)}") from e
         return False
 
-def generate_image_json_files(base_output_path):
+def generate_image_json_files(base_output_path: Path):
     """
     Generate JSON files for all preview images from existing model version data
     
@@ -261,16 +278,16 @@ def generate_image_json_files(base_output_path):
         try:
             # Read version data
             with open(version_file, 'r', encoding='utf-8') as f:
-                version_data = json.load(f)
+                version_data = civitai.ModelVersionResponseData.model_validate_json(f.read())
             
             # Get model directory
             model_dir = version_file.parent
             
             # Process each image in the version data
-            if 'images' in version_data:
-                for i, image_data in enumerate(version_data['images']):
+            if version_data.images:
+                for i, image_data in enumerate(version_data.images):
                     # Determine the preview file extension
-                    ext = '.mp4' if image_data.get('type') == 'video' else '.jpeg'
+                    ext = '.mp4' if image_data.type == 'video' else '.jpeg'
                     preview_file = model_dir / f"{model_dir.name}_preview_{i}{ext}"
                     
                     # Only create JSON if the preview file exists
@@ -279,17 +296,17 @@ def generate_image_json_files(base_output_path):
                         
                         # Write image metadata
                         with open(json_file, 'w', encoding='utf-8') as f:
-                            json.dump(image_data, f, indent=4)
+                            _ = f.write(civitai.ModelVersionImage.model_dump_json(image_data))
                             total_generated += 1
                             
         except Exception as e:
-            print(f"Error processing {version_file}: {str(e)}")
+            raise Exception(f"Error processing {version_file}: {str(e)}") from e
             continue
     
     print(f"\nGenerated {total_generated} JSON files for preview images")
     return True
 
-def update_missing_files_list(base_path, safetensors_path, status_code):
+def update_missing_files_list(base_path: Path, safetensors_path: Path, status_code: int | None):
     """
     Update the list of files missing from Civitai
     
@@ -302,7 +319,7 @@ def update_missing_files_list(base_path, safetensors_path, status_code):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Read existing entries if file exists, skipping header lines
-    entries = []
+    entries: list[str] = []
     if missing_file.exists():
         with open(missing_file, 'r', encoding='utf-8') as f:
             for line in f:
@@ -322,20 +339,20 @@ def update_missing_files_list(base_path, safetensors_path, status_code):
     if entries:
         # Write updated list with headers
         with open(missing_file, 'w', encoding='utf-8') as f:
-            f.write("# Files not found on Civitai\n")
-            f.write("# Format: Timestamp | Status Code | Filename\n")
-            f.write("# This file is automatically updated when the script runs\n")
-            f.write("# A file is removed from this list when it becomes available again\n\n")
+            _ = f.write("# Files not found on Civitai\n")
+            _ = f.write("# Format: Timestamp | Status Code | Filename\n")
+            _ = f.write("# This file is automatically updated when the script runs\n")
+            _ = f.write("# A file is removed from this list when it becomes available again\n\n")
             
             # Write entries sorted by timestamp (newest first)
             for entry in sorted(entries, reverse=True):
-                f.write(f"{entry}\n")
+                _ = f.write(f"{entry}\n")
     elif missing_file.exists():
         # Delete the file if there are no entries
         missing_file.unlink()
         print("\nAll models are now available on Civitai. Removed missing_from_civitai.txt")
 
-def find_duplicate_models(directory_path, base_output_path):
+def find_duplicate_models(directory_path: Path, base_output_path: Path):
     """
     Find models with duplicate hashes
     
@@ -346,7 +363,7 @@ def find_duplicate_models(directory_path, base_output_path):
     Returns:
         dict: Dictionary mapping hashes to lists of model info
     """
-    hash_map = {}
+    hash_map: dict[str, list[HashData]] = {}
     
     # Scan all processed models
     for model_dir in base_output_path.iterdir():
@@ -359,8 +376,8 @@ def find_duplicate_models(directory_path, base_output_path):
             
         try:
             with open(hash_file, 'r', encoding='utf-8') as f:
-                hash_data = json.load(f)
-                hash_value = hash_data.get('hash_value')
+                hash_data = HashFileDataTA.validate_json(f.read())
+                hash_value: str = hash_data.get('hash_value')
                 if not hash_value:
                     continue
                     
@@ -384,12 +401,12 @@ def find_duplicate_models(directory_path, base_output_path):
                 })
                 
         except Exception as e:
-            print(f"Error reading hash file {hash_file}: {e}")
+            raise Exception(f"Error reading hash file {hash_file}: {e}") from e
             continue
             
     return {k: v for k, v in hash_map.items() if len(v) > 1}
 
-def clean_output_directory(directory_path, base_output_path):
+def clean_output_directory(directory_path: Path, base_output_path: Path):
     """
     Clean up output directory by removing data for models that no longer exist
     
@@ -407,9 +424,9 @@ def clean_output_directory(directory_path, base_output_path):
     if duplicates:
         duplicate_file = base_output_path / "duplicate_models.txt"
         with open(duplicate_file, 'w', encoding='utf-8') as f:
-            f.write("# Duplicate models found in input directory\n")
-            f.write("# Format: Hash | Kept Model | Removed Duplicates\n")
-            f.write("# This file is automatically updated when running --clean\n\n")
+            _ = f.write("# Duplicate models found in input directory\n")
+            _ = f.write("# Format: Hash | Kept Model | Removed Duplicates\n")
+            _ = f.write("# This file is automatically updated when running --clean\n\n")
             
             for hash_value, models in duplicates.items():
                 # Sort by processed time, newest first
@@ -423,18 +440,18 @@ def clean_output_directory(directory_path, base_output_path):
                 removed_models = sorted_models[1:]
                 
                 # Write to duplicates file
-                f.write(f"Hash: {hash_value}\n")
-                f.write(f"Kept: {kept_model['safetensors_file']}\n")
-                f.write("Removed:\n")
+                _ = f.write(f"Hash: {hash_value}\n")
+                _ = f.write(f"Kept: {kept_model['safetensors_file']}\n")
+                _ = f.write("Removed:\n")
                 
                 for model in removed_models:
-                    f.write(f"  - {model['safetensors_file']}\n")
+                    _ = f.write(f"  - {model['safetensors_file']}\n")
                     print(f"Removing duplicate model: {model['model_dir'].name}")
                     try:
                         shutil.rmtree(model['model_dir'])
                     except Exception as e:
-                        print(f"Error removing directory {model['model_dir']}: {e}")
-                f.write("\n")    
+                        raise Exception(f"Error removing directory {model['model_dir']}: {e}") from e
+                _ = f.write("\n")    
  
         print(f"\nDuplicate models list saved to {duplicate_file}")
     else:
@@ -450,7 +467,7 @@ def clean_output_directory(directory_path, base_output_path):
     
     # Check each directory in output
     output_dirs = [d for d in base_output_path.iterdir() if d.is_dir()]
-    cleaned_dirs = []
+    cleaned_dirs: list[str] = []
     
     for output_dir in output_dirs:
         if output_dir.name not in existing_models:
@@ -459,7 +476,7 @@ def clean_output_directory(directory_path, base_output_path):
                 shutil.rmtree(output_dir)
                 cleaned_dirs.append(str(output_dir))
             except Exception as e:
-                print(f"Error removing directory {output_dir}: {e}")
+                raise Exception(f"Error removing directory {output_dir}: {e}") from e
     
     # Update processed_files.json
     if cleaned_dirs:
@@ -477,7 +494,7 @@ def clean_output_directory(directory_path, base_output_path):
     
     return True
 
-def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, download_all_images=False, skip_images=False):
+def fetch_version_data(config: Config, hash_value: str, output_dir: Path, base_path: Path, safetensors_path: Path):
     """
     Fetch version data from Civitai API using file hash
     
@@ -492,43 +509,58 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
         int or None: modelId if successful, None otherwise
     """
     try:
-        civitai_url = f"https://civitai.com/api/v1/model-versions/by-hash/{hash_value}"
-        print(f"\nFetching version data from Civitai API:")
-        print(civitai_url)
+        civitai_url = f"https://civitai.com/api/v1/model-versions/by-hash/{hash_value[:12]}"
+        print(dedent(f"""
+            \nFetching version data from Civitai API:
+            output_dir:       {output_dir}
+            base_path:        {base_path}
+            safetensors_path: {safetensors_path}
+            {civitai_url}
+        """))
+
+        headers: dict[str, str] = {}
+        if config.api_key:
+            headers['Authorization'] = f"Bearer {config.api_key}"
         
-        response = requests.get(civitai_url)
+        response = requests.get(civitai_url, headers=headers)
         base_name = sanitize_filename(safetensors_path.stem)
         civitai_path = output_dir / f"{base_name}_civitai_model_version.json"
         
         if response.status_code == 200:
             with open(civitai_path, 'w', encoding='utf-8') as f:
-                response_data = response.json()
-                json.dump(response_data, f, indent=4)
+                response_data = civitai.ModelVersionResponseData.model_validate_json(response.text)
+                file_data = StoredFile[civitai.ModelVersionResponseData](
+                    createdAt=datetime.now().astimezone(),
+                    updatedAt=datetime.now().astimezone(),
+                    data=response_data,
+                )
+                
+                _ = f.write(file_data.model_dump_json(indent=4))
                 print(f"Version data successfully saved to {civitai_path}")
 
                 # Remove from missing files list if it was there before
                 update_missing_files_list(base_path, safetensors_path, None)  # Pass None to indicate file is back
                 
                 # Handle image downloads based on flags
-                if not skip_images and 'images' in response_data and response_data['images']:
-                    if download_all_images:
-                        print(f"\nDownloading all preview images ({len(response_data['images'])} images found)")
-                        for i, image_data in enumerate(response_data['images']):
-                            if 'url' in image_data:
-                                is_video = image_data.get('type') == 'video'
-                                download_preview_image(image_data['url'], output_dir, base_name, i, is_video, image_data)
+                if not config.noimages and response_data.images:
+                    if config.images:
+                        print(f"\nDownloading all preview images ({len(response_data.images)} images found)")
+                        for i, image_data in enumerate(response_data.images):
+                            if image_data.url:
+                                is_video: bool = image_data.type == 'video'
+                                _ = download_preview_image(image_data.url, output_dir, base_name, i, is_video, image_data)
                                 # Add a small delay between downloads to be nice to the server
-                                if i < len(response_data['images']) - 1:
+                                if i < len(response_data.images) - 1:
                                     time.sleep(1)
                     else:
                         # Download only the first image
-                        if 'url' in response_data['images'][0]:
-                            is_video = response_data['images'][0].get('type') == 'video'
-                            download_preview_image(response_data['images'][0]['url'], output_dir, base_name, 0, is_video, response_data['images'][0])
+                        if response_data.images[0].url:
+                            is_video = response_data.images[0].type == 'video'
+                            _ = download_preview_image(response_data.images[0].url, output_dir, base_name, 0, is_video, response_data.images[0])
 
                 
                 # Return modelId if it exists
-                return response_data.get('modelId')
+                return response_data
         else:
             error_message = {
                 "error": "Failed to fetch Civitai data",
@@ -536,20 +568,21 @@ def fetch_version_data(hash_value, output_dir, base_path, safetensors_path, down
                 "timestamp": datetime.now().isoformat()
             }
             with open(civitai_path, 'w', encoding='utf-8') as f:
-                json.dump(error_message, f, indent=4)
+                _ = f.buffer.write(json_serialize(error_message))
             print(f"Error: Failed to fetch Civitai data (Status code: {response.status_code})")
             
             # Update missing files list
             update_missing_files_list(base_path, safetensors_path, response.status_code)
-            return None
-                
+            # raise Exception(f"Error: Failed to fetch Civitai data (Status code: {response.status_code})")
+
     except Exception as e:
-        print(f"Error fetching version data: {str(e)}")
+        raise Exception(f"fetch_version_data({hash_value})") from e
+        # print(f"Error fetching version data: {str(e)}")
         # Update missing files list for connection errors
         # update_missing_files_list(base_path, safetensors_path, 0)  # Use 0 for connection errors
         return None
 
-def fetch_model_details(model_id, output_dir, safetensors_path):
+def fetch_model_details(model_id: civitai.ModelId, output_dir: Path, safetensors_path: Path):
     """
     Fetch detailed model information from Civitai API
     
@@ -562,7 +595,7 @@ def fetch_model_details(model_id, output_dir, safetensors_path):
     """
     try:
         civitai_model_url = f"https://civitai.com/api/v1/models/{model_id}"
-        print(f"\nFetching model details from Civitai API:")
+        print("\nFetching model details from Civitai API:")
         print(civitai_model_url)
         
         response = requests.get(civitai_model_url)
@@ -571,7 +604,7 @@ def fetch_model_details(model_id, output_dir, safetensors_path):
         
         with open(model_data_path, 'w', encoding='utf-8') as f:
             if response.status_code == 200:
-                json.dump(response.json(), f, indent=4)
+                _ = f.write(civitai.ModelResponseData.model_validate_json(response.text).model_dump_json(indent=4))
                 print(f"Model details successfully saved to {model_data_path}")
                 return True
             else:
@@ -580,15 +613,17 @@ def fetch_model_details(model_id, output_dir, safetensors_path):
                     "status_code": response.status_code,
                     "timestamp": datetime.now().isoformat()
                 }
-                json.dump(error_data, f, indent=4)
-                print(f"Error: Could not fetch model details (Status code: {response.status_code})")
-                return False
+                _ = f.buffer.write(json_serialize(error_data))
+                # print(f"Error: Could not fetch model details (Status code: {response.status_code})")
+                # return False
+                raise Exception(f"Error: Could not fetch model details (Status code: {response.status_code})")
                 
     except Exception as e:
+        raise e
         print(f"Error fetching model details: {str(e)}")
         return False
 
-def check_for_updates(safetensors_path, output_dir, hash_value):
+def check_for_updates(safetensors_path: Path, output_dir: Path, hash_value: str, api_key: str | None=None):
     """
     Check if the model needs to be updated by comparing updatedAt timestamps
     
@@ -609,25 +644,35 @@ def check_for_updates(safetensors_path, output_dir, hash_value):
         # Read existing version data
         try:
             with open(civitai_version_file, 'r', encoding='utf-8') as f:
-                existing_data = json.load(f)
+                existing_data = CivitaiVersionFileTA.validate_json(f.read())
                 existing_updated_at = existing_data.get('updatedAt')
                 if not existing_updated_at:
                     return True
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError) as e:
+            raise Exception(f"Error reading existing version data from {civitai_version_file}") from e
             return True
             
         # Fetch current version data from Civitai
-        civitai_url = f"https://civitai.com/api/v1/model-versions/by-hash/{hash_value}"
-        print(f"\nChecking for updates from Civitai API:")
-        print(civitai_url)
+        civitai_url = f"https://civitai.com/api/v1/model-versions/by-hash/{hash_value:[:12]}"
+        print(dedent(f"""
+            \nChecking for updates from Civitai API:
+            output_dir:       {output_dir}
+            safetensors_path: {safetensors_path}
+            {civitai_url}
+        """))
+
+
+        headers: dict[str, str] = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         
-        response = requests.get(civitai_url)
+        response = requests.get(civitai_url, headers=headers)
         if response.status_code != 200:
             print(f"Error checking for updates (Status code: {response.status_code})")
             return True
             
-        current_data = response.json()
-        current_updated_at = current_data.get('updatedAt')
+        current_data = civitai.ModelVersion.model_validate_json(response.text)
+        current_updated_at: datetime | None = current_data.updatedAt
         
         if not current_updated_at:
             return True
@@ -646,8 +691,7 @@ def check_for_updates(safetensors_path, output_dir, hash_value):
         print(f"Error checking for updates: {str(e)}")
         return True  # If there's any error, proceed with update
 
-def process_single_file(safetensors_path, base_output_path, download_all_images=False,
-                        skip_images=False, html_only=False, only_update=False):
+def process_single_file(config: Config, safetensors_path: Path):
     """
     Process a single safetensors file
     
@@ -669,12 +713,12 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
         return False
     
     # Setup export directories
-    model_output_dir = setup_export_directories(base_output_path, safetensors_path)
+    model_output_dir = setup_export_directories(config.output, safetensors_path)
     print(f"\nProcessing: {safetensors_path.name}")
-    if not html_only:
+    if not config.onlyhtml:
         print(f"Files will be saved in: {model_output_dir}")
     
-    if html_only:
+    if config.onlyhtml:
         # Check if required files exist
         base_name = sanitize_filename(safetensors_path.stem)
         required_files = [
@@ -683,15 +727,21 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
             model_output_dir / f"{base_name}_hash.json"
         ]
         
-        if not all(f.exists() for f in required_files):
-            print(f"Error: Missing required JSON files for {safetensors_path.name}")
-            return False
+        missing: list[Path] = [f for f in required_files if not f.exists()]
+        if len(missing):
+            raise Exception(f"Error: Missing required JSON files for {safetensors_path.name}: {missing}")
             
+        model_data = ModelData(
+            base_dir=config.output,
+            safetensors=safetensors_path,
+        )
+
         # Generate HTML only
-        generate_html_summary(model_output_dir, safetensors_path, VERSION)
+        _ = generate_html_summary(config, model_data, VERSION)
         return True
-    
-    if only_update:
+
+    metadata = None
+    if config.onlyupdate:
         # Check if hash file exists
         hash_file = model_output_dir / f"{safetensors_path.stem}_hash.json"
         if not hash_file.exists():
@@ -701,7 +751,7 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
         # Read existing hash
         try:
             with open(hash_file, 'r') as f:
-                hash_data = json.load(f)
+                hash_data = HashFileDataTA.validate_json(f.read())
                 hash_value = hash_data.get('hash_value')
                 if not hash_value:
                     raise ValueError("Invalid hash file")
@@ -709,31 +759,28 @@ def process_single_file(safetensors_path, base_output_path, download_all_images=
             print(f"Error reading hash file: {e}")
             return False
     else:
-        # Normal processing mode
-        hash_value = extract_hash(safetensors_path, model_output_dir)
-        if not hash_value:
-            print("Error: Failed to extract hash")
-            return False
-    
+        (hash_value, metadata) = extract_metadata(safetensors_path, model_output_dir)
+
     # Check if update is needed
     if not check_for_updates(safetensors_path, model_output_dir, hash_value):
         print("Skipping file (no updates available)")
         return True
     
     # Process the file
-    if only_update or extract_metadata(safetensors_path, model_output_dir):
-        model_id = fetch_version_data(hash_value, model_output_dir, base_output_path, 
-                                    safetensors_path, download_all_images, skip_images)
-        if model_id:
-            fetch_model_details(model_id, model_output_dir, safetensors_path)
-            generate_html_summary(model_output_dir, safetensors_path, VERSION)
+    if config.onlyupdate or metadata:
+        model_version = fetch_version_data(config, hash_value, model_output_dir, config.output, safetensors_path)
+        if model_version:
+            _ = fetch_model_details(model_version.modelId, model_output_dir, safetensors_path)
+            model_data = ModelData(
+                base_dir=config.output,
+                safetensors=safetensors_path,
+            )
+            _ = generate_html_summary(config, model_data, VERSION)
             return True
             
     return False
 
-def process_directory(directory_path, base_output_path, no_timeout=False, 
-                     download_all_images=False, skip_images=False, only_new=False, 
-                     html_only=False, only_update=False, skip_missing=False):
+def process_directory(config: Config, directory_path: Path):
     """
     Process all safetensors files in a directory
             
@@ -753,19 +800,19 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
         return False
         
     # Initialize processed files manager if needed
-    files_manager = None if html_only else ProcessedFilesManager(base_output_path)
-    
+    files_manager = ProcessedFilesManager(config.output)
+
     # Get files to process
-    if only_new and not html_only:
+    if config.onlynew and not config.onlyhtml:
         safetensors_files = files_manager.get_new_files(directory_path)
         if not safetensors_files:
             print("No new files to process")
             return True
         
-        if skip_missing:
+        if config.skipmissing:
             # Read missing models file
-            missing_file = Path(base_output_path) / 'missing_from_civitai.txt'
-            missing_models = set()
+            missing_file = Path(config.output) / 'missing_from_civitai.txt'
+            missing_models = set[str]()
             if missing_file.exists():
                 with open(missing_file, 'r', encoding='utf-8') as f:
                     for line in f:
@@ -783,12 +830,12 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
                 return True
 
         print(f"\nFound {len(safetensors_files)} new .safetensors files")
-    elif only_update:
+    elif config.onlyupdate:
         # Only get previously processed files
-        safetensors_files = []
+        safetensors_files: list[Path] = []
         all_files = list(directory_path.glob('**/*.safetensors'))
         for file_path in all_files:
-            hash_file = Path(base_output_path) / file_path.stem / f"{file_path.stem}_hash.json"
+            hash_file = Path(config.output) / file_path.stem / f"{file_path.stem}_hash.json"
             if hash_file.exists():
                 safetensors_files.append(file_path)
         print(f"\nFound {len(safetensors_files)} previously processed files")
@@ -799,32 +846,31 @@ def process_directory(directory_path, base_output_path, no_timeout=False,
             return False
         print(f"\nFound {len(safetensors_files)} .safetensors files")
     
-    if html_only:
+    if config.onlyhtml:
         print("HTML only mode: Skipping data fetching")
     
     files_processed = 0
     for i, file_path in enumerate(safetensors_files, 1):
         print(f"\n[{i}/{len(safetensors_files)}] Processing: {file_path.relative_to(directory_path)}")
-        success = process_single_file(file_path, base_output_path, 
-                                    download_all_images, skip_images, html_only, only_update)
+        success = process_single_file(config, file_path)
         
         if success:
             files_processed += 1
-            if not html_only:
-                if not only_update:
+            if not config.onlyhtml:
+                if not config.onlyupdate:
                     files_manager.add_processed_file(file_path)
                 else:
-                    files_manager.update_timestamp()            
+                    files_manager.update_timestamp()
         
         # Add timeout between files (except for the last file) if not in HTML only mode
-        if not html_only and not no_timeout and i < len(safetensors_files):
+        if not config.onlyhtml and not config.notimeout and i < len(safetensors_files):
             timeout = random.uniform(3, 6)
             print(f"\nWaiting {timeout:.1f} seconds before processing next file (rate limiting protection)...")
             print("(You can use --notimeout to disable this waiting time)")
             time.sleep(timeout)
     
     # Save the updated processed files list if not in HTML only mode
-    if not (html_only or only_update):
+    if not (config.onlyhtml or config.onlyupdate):
         files_manager.save_processed_files()
 
     return True

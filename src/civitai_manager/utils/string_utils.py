@@ -1,6 +1,15 @@
+from os import PathLike
+from pathlib import Path
 import re
 
-def sanitize_filename(filename):
+type AnyPathLike = Path | PathLike[bytes] | PathLike[str]
+
+def pathlike_or_path_to_path(path: AnyPathLike) -> Path:
+    if isinstance(path, Path):
+        return path
+    return Path(str(path))
+
+def sanitize_filename(filename: str) -> str:
     """
     Create a clean, filesystem-friendly filename
     
@@ -10,6 +19,7 @@ def sanitize_filename(filename):
     Returns:
         str: Sanitized filename
     """
+
     # Remove or replace problematic characters
     # 1. Replace brackets, quotes, and special characters with underscores
     sanitized = re.sub(r'[\[\]\(\)\{\}\'"#]', '_', filename)

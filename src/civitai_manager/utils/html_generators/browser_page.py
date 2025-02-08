@@ -1,10 +1,49 @@
+from collections.abc import Iterable
 from pathlib import Path
 import html
+from typing import TypedDict
+
+from pydantic import TypeAdapter
+
+from civitai import ModelResponseData, ModelVersion, Tag
+from file_types import HashFileData, HashFileDataTA, StoredFile
 from ..string_utils import sanitize_filename
-import json
 from datetime import datetime
 
-def generate_global_summary(output_dir, VERSION):
+class BaseModelsByTypeEntry(TypedDict):
+    name: str
+    creator: str
+    downloads: int
+    base_name: str
+    html_file: str
+    tags: Iterable[Tag | str]
+    baseModel: str | None
+    trainedWords: list[str]
+    createdAt: datetime | None
+    updatedAt: datetime | None
+    missing: bool
+    has_html: bool
+
+class MissingFromCivitai(BaseModelsByTypeEntry):
+    pass
+
+MissingFromCivitaiTA = TypeAdapter(MissingFromCivitai)
+
+# class MissingFromCivitai(BaseModelsByTypeEntry):
+#     version_name: None
+#     added_date: None
+#     file_size: None
+
+
+class ModelsByTypeEntry(BaseModelsByTypeEntry):
+    version_name: str
+    added_date: datetime | None
+    file_size: int | float | None
+
+def get_html_tags(tags: Iterable[Tag | str]) -> str:
+    return ','.join(tag.name.lower() if isinstance(tag, Tag) else tag.lower() for tag in tags)
+
+def generate_global_summary(output_dir: Path, VERSION: str):
     """
     Generate an HTML summary of all models in the output directory
     
@@ -12,181 +51,184 @@ def generate_global_summary(output_dir, VERSION):
         output_dir (Path): Directory containing the JSON files
         VERSION (str): Version of the script
     """
-    try:
-        # Find all model.json files
-        model_files = list(Path(output_dir).glob('*/*/civitai_model.json')) + \
-                      list(Path(output_dir).glob('*/*_civitai_model.json'))
-        
-        # Read missing models file
-        missing_models = set()
-        missing_file = Path(output_dir) / 'missing_from_civitai.txt'
-        if missing_file.exists():
-            with open(missing_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.strip() and not line.startswith('#'):
-                        # Extract filename from the line
-                        filename = line.strip().split(' | ')[-1]
-                        missing_models.add(filename)
-        
-        # Dictionary to store models by type
-        models_by_type = {}
-        
-        for model_file in model_files:
-            try:
-                # Get paths for model, version, and hash files
-                base_name = model_file.parent.name
-                version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
-                hash_file = model_file.parent / f"{base_name}_hash.json"
-                html_file = model_file.parent / f"{base_name}.html"
-        
-                # Read all files
-                with open(model_file, 'r', encoding='utf-8') as f:
-                    model_data = json.load(f)
+    # Find all model.json files
+    model_files = list(Path(output_dir).glob('*/*/civitai_model.json')) + \
+                    list(Path(output_dir).glob('*/*_civitai_model.json'))
+    
+    # Read missing models file
+    missing_models = set[str]()
+    missing_file = Path(output_dir) / 'missing_from_civitai.txt'
+    if missing_file.exists():
+        with open(missing_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    # Extract filename from the line
+                    filename = line.strip().split(' | ')[-1]
+                    missing_models.add(filename)
+    
+    # Dictionary to store models by type
+    models_by_type: dict[str, list[ModelsByTypeEntry | MissingFromCivitai]] = {}
+    
+    for model_file in model_files:
+        # Get paths for model, version, and hash files
+        base_name = model_file.parent.name
+        version_file = model_file.parent / f"{base_name}_civitai_model_version.json"
+        hash_file = model_file.parent / f"{base_name}_hash.json"
+        html_file = model_file.parent / f"{base_name}.html"
 
-                version_data = {}
-                if version_file.exists():
-                    with open(version_file, 'r', encoding='utf-8') as f:
-                        version_data = json.load(f)
-                        
-                hash_data = {}
-                if hash_file.exists():
-                    with open(hash_file, 'r', encoding='utf-8') as f:
-                        hash_data = json.load(f)
+        # Read all files
+        with open(model_file, 'r', encoding='utf-8') as f:
+            model_data = ModelResponseData.model_validate_json(f.read())
 
-                model_type = model_data.get('type', 'Unknown')
-                
-                if model_type not in models_by_type:
-                    models_by_type[model_type] = []
-                    
-                models_by_type[model_type].append({
-                    # Add model data
-                    'name': model_data.get('name', 'Unknown'),
-                    'creator': model_data.get('creator', {}).get('username', 'Unknown'),
-                    'base_name': base_name,
-                    'html_file': f"{base_name}.html",
-                    'tags': model_data.get('tags', []),
-                    # Add version data
-                    'version_name': version_data.get('name', ''),
-                    'downloads': version_data.get('stats', {}).get('downloadCount', 0),
-                    'has_html': html_file.exists(),
-                    'added_date': hash_data.get('timestamp', ''),
-                    'file_size': version_data.get('files', [{}])[0].get('sizeKB', None)
-                })
-            except:
-                continue
+        version_data: StoredFile[ModelVersion] | None = None
+        if version_file.exists():
+            with open(version_file, 'r', encoding='utf-8') as f:
+                version_data = StoredFile[ModelVersion].model_validate_json(f.read())
 
-        # Process missing models
-        if missing_models:
-            if 'Missing from Civitai' not in models_by_type:
-                models_by_type['Missing from Civitai'] = []
+        hash_data: HashFileData | None = None
+        if hash_file.exists():
+            with open(hash_file, 'r', encoding='utf-8') as f:
+                hash_data = HashFileDataTA.validate_json(f.read())
+
+        if model_data.type not in models_by_type:
+            models_by_type[model_data.type] = []
             
-            for filename in missing_models:
-                base_name = Path(filename).stem
-                html_file = Path(output_dir) / base_name / f"{base_name}.html"
-                html_exists = html_file.exists()
+        models_by_type[model_data.type].append(ModelsByTypeEntry(
+            # Add model data
+            name=model_data.name,
+            creator=model_data.creator.username,
+            base_name=base_name,
+            html_file=f"{base_name}.html",
+            tags=model_data.tags,
+            # Add version data
+            version_name=version_data.data.name if version_data else "Unknown",
+            downloads=version_data.data.stats.downloadCount if version_data else 0,
+            has_html=html_file.exists(),
+            added_date=hash_data["timestamp"] if hash_data else None,
+            file_size=version_data.data.files[0].sizeKB if version_data else None,
+            baseModel="",
+            trainedWords=[],
+            createdAt=datetime.now(),
+            updatedAt=None,
+            missing=False,
+        ))
 
-                models_by_type['Missing from Civitai'].append({
-                    'name': base_name,
-                    'creator': 'Unknown',
-                    'downloads': 0,
-                    'base_name': base_name,
-                    'html_file': f"{base_name}.html" if html_exists else '',
-                    'tags': [],
-                    'baseModel': 'Unknown',
-                    'trainedWords': [],
-                    'createdAt': 'Unknown',
-                    'updatedAt': 'Unknown',
-                    'missing': True,
-                    'has_html': html_exists
-                })
-
-        # Sort each type's models
-        for model_type in models_by_type:
-            if model_type != 'Missing from Civitai':
-                models_by_type[model_type].sort(key=lambda x: x['downloads'], reverse=True)
-            else:
-                models_by_type[model_type].sort(key=lambda x: x['name'].lower())
-
-        # Create sections HTML for each type
-        type_sections = ''
-        total_models = sum(len(models) for models in models_by_type.values())
+    # Process missing models
+    if missing_models:
+        if 'Missing from Civitai' not in models_by_type:
+            models_by_type['Missing from Civitai'] = []
         
-        for model_type, models in sorted(models_by_type.items()):
-            # Create model cards first
-            model_cards = []
-            for model in models:
-                sanitized_base = sanitize_filename(model["base_name"])
-                html_name = f"{sanitized_base}.html"
-                model_name = (
-                    f'<a href="{sanitized_base}/{html_name}">{html.escape(model["name"])}</a>'
-                    if model.get('has_html', False) or not model.get('missing')
-                    else '<span class="missing-model">' + html.escape(model['name']) + '</span>'
-                )
-                
-                dates_section = ''
-                if model.get('createdAt', "Unknown") != "Unknown":
-                    created_date = model['createdAt'][:10]
-                    updated_date = f" | Updated: {model['updatedAt'][:10]}" if model['updatedAt'] != "Unknown" else ''
-                    dates_section = f'<div class="dates">Created: {created_date}{updated_date}</div>'
-                
-                base_model_section = ''
-                if model.get('baseModel', 'Unknown') != 'Unknown':
-                    base_model_section = f'<div class="base-model">Base Model: {model["baseModel"]}</div>'
-                
-                downloads_section = ''
-                if not model.get('missing'):
-                    downloads_section = f'<div class="downloads">Downloads: {model["downloads"]:,}</div>'
-                
-                filesize_section = ''
-                if model.get('file_size'):
-                    filesize_section = f'<div class="file-size">Size: {model.get('file_size', 0)/1024:.2f} MB</div>'
-                
-                trained_words_section = ''
-                if model.get('trainedWords'):
-                    trained_words_section = f'<div class="trained-words">{", ".join(model["trainedWords"])}</div>'
-                
-                tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
-                
-                sanitized_base_name = sanitize_filename(model['base_name'])
-                preview_path = f"{sanitized_base_name}/{sanitized_base_name}_preview_0.jpeg"
-                
-                card_html = f"""
-                    <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" 
-                    data-tags="{','.join(model['tags']).lower()}"
-                    data-name="{model['name'].lower()}"
-                    data-creator="{model['creator'].lower()}"
-                    data-downloads="{model['downloads']}"
-                    data-filename="{model['base_name'].lower()}"
-                    data-raw-size="{model.get('file_size', 0)}"
-                    data-added-date="{model.get('added_date', '')}">
-                        <img class="model-cover" src="{preview_path}" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
-                        <h3>{model_name}</h3>
-                        <small class="version-name">{model.get('version_name', '')}</small>
-                        <div>by {model['creator']}</div>
-                        {base_model_section}
-                        {downloads_section}
-                        {filesize_section}
-                        {dates_section}
-                        <div class="tags">
-                            {tags_html}
-                        </div>
-                        {trained_words_section}
-                    </div>
-                """
-                model_cards.append(card_html)
+        for filename in missing_models:
+            base_name = Path(filename).stem
+            html_file = Path(output_dir) / base_name / f"{base_name}.html"
+            html_exists = html_file.exists()
 
-            # Create section with all model cards
-            type_sections += f"""
-                <div class="type-section" data-type="{model_type.lower()}">
-                    <h2>{model_type} ({len(models)} models)</h2>
-                    <div class="models-grid">
-                        {''.join(model_cards)}
+            models_by_type['Missing from Civitai'].append(MissingFromCivitai(
+                name=base_name,
+                creator='Unknown',
+                downloads=0,
+                base_name=base_name,
+                html_file=f"{base_name}.html" if html_exists else '',
+                tags=[],
+                baseModel=None,
+                trainedWords=[],
+                createdAt=None,
+                updatedAt=None,
+                missing=True,
+                has_html=html_exists
+            ))
+
+    # Sort each type's models
+    for model_type in models_by_type:
+        if model_type != 'Missing from Civitai':
+            models_by_type[model_type].sort(key=lambda x: x['downloads'], reverse=True)
+        else:
+            models_by_type[model_type].sort(key=lambda x: x['name'].lower())
+
+    # Create sections HTML for each type
+    type_sections = ''
+    total_models = sum(len(models) for models in models_by_type.values())
+    
+    for model_type, models in sorted(models_by_type.items()):
+        # Create model cards first
+        model_cards: list[str] = []
+        for model in models:
+            sanitized_base = sanitize_filename(model["base_name"])
+            html_name = f"{sanitized_base}.html"
+            model_name = (
+                f'<a href="{sanitized_base}/{html_name}">{html.escape(model["name"])}</a>'
+                if model.get('has_html', False) or not model.get('missing')
+                else '<span class="missing-model">' + html.escape(model['name']) + '</span>'
+            )
+            
+            dates_section = ''
+            if model.get('createdAt', "Unknown") != "Unknown":
+                created_date = model['createdAt']
+                updated_date = model['updatedAt']
+                dates_section = f'<div class="dates">Created: {created_date}{updated_date}</div>'
+            
+            base_model_section = ''
+            if model.get('baseModel', 'Unknown') != 'Unknown':
+                base_model_section = f'<div class="base-model">Base Model: {model["baseModel"]}</div>'
+            
+            downloads_section = ''
+            if not model.get('missing'):
+                downloads_section = f'<div class="downloads">Downloads: {model["downloads"]:,}</div>'
+            
+            filesize_section = ''
+            if model.get('file_size'):
+                if "file_size" in model and model['file_size'] is not None:
+                    size = model["file_size"]/1024
+                else:
+                    size = 0
+                filesize_section = f'<div class="file-size">Size: {size} MB</div>'
+            
+            trained_words_section = ''
+            if model.get('trainedWords'):
+                trained_words_section = f'<div class="trained-words">{", ".join(model["trainedWords"])}</div>'
+            
+            tags_html = ''.join(f'<span class="tag">{tag}</span>' for tag in model['tags'])
+            
+            sanitized_base_name = sanitize_filename(model['base_name'])
+            preview_path = f"{sanitized_base_name}/{sanitized_base_name}_preview_0.jpeg"
+            
+            card_html = f"""
+                <div class="model-card{' missing' if model.get('missing') else ''}{' processed' if model.get('has_html') else ''}" 
+                data-tags="{get_html_tags(model['tags'])}"
+                data-name="{model['name'].lower()}"
+                data-creator="{model['creator'].lower()}"
+                data-downloads="{model['downloads']}"
+                data-filename="{model['base_name'].lower()}"
+                data-raw-size="{model.get('file_size', 0)}"
+                data-added-date="{model.get('added_date', '')}">
+                    <img class="model-cover" src="{preview_path}" onerror="if (this.src.includes('preview_0')) {{ this.src = this.src.replace('preview_0', 'preview_1'); }} else {{ this.style.display='none'; }}" loading="lazy">
+                    <h3>{model_name}</h3>
+                    <small class="version-name">{model.get('version_name', '')}</small>
+                    <div>by {model['creator']}</div>
+                    {base_model_section}
+                    {downloads_section}
+                    {filesize_section}
+                    {dates_section}
+                    <div class="tags">
+                        {tags_html}
                     </div>
+                    {trained_words_section}
                 </div>
             """
+            model_cards.append(card_html)
 
-        # Update the HTML content with type sections
-        html_content = f"""
+        # Create section with all model cards
+        type_sections += f"""
+            <div class="type-section" data-type="{model_type.lower()}">
+                <h2>{model_type} ({len(models)} models)</h2>
+                <div class="models-grid">
+                    {''.join(model_cards)}
+                </div>
+            </div>
+        """
+
+    # Update the HTML content with type sections
+    html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -507,14 +549,10 @@ def generate_global_summary(output_dir, VERSION):
 </html>
 """
 
-        # Write the summary file
-        summary_path = Path(output_dir) / 'index.html'
-        with open(summary_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        print(f"\nGlobal summary generated: {summary_path}")
-        return True
-
-    except Exception as e:
-        print(f"Error generating global summary: {str(e)}")
-        return False
+    # Write the summary file
+    summary_path = Path(output_dir) / 'index.html'
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        _ = f.write(html_content)
+    
+    print(f"\nGlobal summary generated: {summary_path}")
+    return True

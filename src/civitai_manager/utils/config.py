@@ -1,11 +1,32 @@
 import json
 from pathlib import Path
-from typing import Dict, Optional, Union
+
+import pydantic
+
+class Config(pydantic.BaseModel):
+    single: str | None      = pydantic.Field(default=None)
+    all: str | None         = pydantic.Field(default=None)
+    output: pydantic.NewPath | pydantic.DirectoryPath      = pydantic.Field(default_factory=Path)
+    notimeout: bool         = pydantic.Field(default=False)
+    images: bool            = pydantic.Field(default=True)
+    generateimagejson: bool = pydantic.Field(default=False)
+    noimages: bool          = pydantic.Field(default=False)
+    onlynew: bool           = pydantic.Field(default=False)
+    skipmissing: bool       = pydantic.Field(default=False)
+    onlyhtml: bool          = pydantic.Field(default=False)
+    onlyupdate: bool        = pydantic.Field(default=False)
+    clean: bool             = pydantic.Field(default=False)
+    api_key: str | None     = pydantic.Field(default=None)
+    use_swarm: bool         = pydantic.Field(default=False)
+
+
+ConfigTA = pydantic.TypeAdapter(Config)
+
 
 class ConfigValidationError(Exception):
     pass
 
-def validate_config(config: Dict) -> Dict:
+def validate_config(config: dict[str, object]) -> Config:
     """Validates the configuration and returns a normalized config dict."""
     # Required: either single or all path
     if not ('single' in config) ^ ('all' in config):  # XOR - exactly one must be present
@@ -47,9 +68,9 @@ def validate_config(config: Dict) -> Dict:
         if any(config.get(opt, False) for opt in ['onlyhtml', 'onlyupdate', 'onlynew']):
             raise ConfigValidationError("'clean' cannot be used with 'onlyhtml', 'onlyupdate', or 'onlynew'")
 
-    return config
+    return ConfigTA.validate_python(config)
 
-def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict]:
+def load_config(config_path: str | Path | None = None) -> Config | None:
     """
     Load and validate configuration from a JSON file.
     If no path is provided, looks for 'config.json' in the script directory.
@@ -60,21 +81,21 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
         project_root = Path.cwd()
         config_path = project_root / 'config.json'
         import sys
-        sys.stderr.write(f"Looking for config at: {config_path.absolute()}\n")
-        sys.stderr.flush()
+        _ = sys.stderr.write(f"Looking for config at: {config_path.absolute()}\n")
+        _ = sys.stderr.flush()
     else:
         config_path = Path(config_path)
 
     if not config_path.exists():
         import sys
-        sys.stderr.write(f"Config file not found at: {config_path}\n")
-        sys.stderr.flush()
+        _ = sys.stderr.write(f"Config file not found at: {config_path}\n")
+        _ = sys.stderr.flush()
         return None
 
     try:
         with open(config_path, 'r') as f:
-            config = json.load(f)
-        return validate_config(config)
+            config = ConfigTA.validate_json(f.read())
+        return config
     except json.JSONDecodeError as e:
         raise ConfigValidationError(f"Invalid JSON in config file: {str(e)}")
     except Exception as e:

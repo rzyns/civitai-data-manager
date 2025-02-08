@@ -1,9 +1,30 @@
 import json
 import html
-from ..string_utils import sanitize_filename
+
+import civitai
+from civitai_manager.utils.config import Config
+from data import ModelData
+from file_types import HashFileDataTA, StoredFile
 from datetime import datetime
 
-def generate_html_summary(output_dir, safetensors_path, VERSION):
+
+def get_rating_bar_width(stats: civitai.ModelVersionStats | None) -> float:
+    """
+    Get the width of the rating bar
+    
+    Args:
+        stats (dict): Statistics data
+        
+    Returns:
+        float: Width of the rating bar
+    """
+    thumbs_up = stats.thumbsUpCount if stats else 0
+    thumbs_down = stats.thumbsDownCount if stats else 0
+    total_votes = thumbs_up + thumbs_down
+    return (thumbs_up / total_votes) * 100 if total_votes > 0 else 0
+
+
+def generate_html_summary(config: Config, model: ModelData, VERSION: str) -> None | bool:
     """
     Generate an HTML summary of the model information
     
@@ -13,38 +34,36 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         VERSION (str): Version of the script
     """
     try:
-        base_name = sanitize_filename(safetensors_path.stem)
-        model_path = output_dir / f"{base_name}_civitai_model.json"
-        version_path = output_dir / f"{base_name}_civitai_model_version.json"
-        hash_path = output_dir / f"{base_name}_hash.json"
-        html_path = output_dir / f"{base_name}.html"
-        
         # Find all preview images
-        preview_images = sorted(output_dir.glob(f"{base_name}_preview*.jpg")) + \
-                         sorted(output_dir.glob(f"{base_name}_preview*.jpeg")) + \
-                         sorted(output_dir.glob(f"{base_name}_preview*.png")) + \
-                         sorted(output_dir.glob(f"{base_name}_preview*.mp4"))
+        preview_images = sorted(config.output.glob(f"{model.sanitized_name}_preview*.jpg")) + \
+                         sorted(config.output.glob(f"{model.sanitized_name}_preview*.jpeg")) + \
+                         sorted(config.output.glob(f"{model.sanitized_name}_preview*.png")) + \
+                         sorted(config.output.glob(f"{model.sanitized_name}_preview*.mp4"))
 
         
         # Check if all required files exist
-        if not all(p.exists() for p in [model_path, version_path, hash_path]):
-            print("Error: Missing required JSON files for HTML generation")
-            return False
+        missing: list[str] = []
+        for p in filter(lambda p: p.stem.endswith(".json"), model.paths.as_dict().values()):
+            if not p.exists():
+                missing.append(p.as_posix())
+        if not len(missing) == 0:
+            raise Exception(f"Error: Missing required JSON files for HTML generation: {missing}")
             
         # Read JSON data
         try:
-            with open(model_path, 'r', encoding='utf-8') as f:
-                model_data = json.load(f)
-            with open(version_path, 'r', encoding='utf-8') as f:
-                version_data = json.load(f)
-            with open(hash_path, 'r', encoding='utf-8') as f:
-                hash_data = json.load(f)
+            with open(model.paths.info, 'r', encoding='utf-8') as f:
+                model_data = civitai.ModelResponseData.model_validate_json(f.read())
+            with open(model.paths.version, 'r', encoding='utf-8') as f:
+                version_data = StoredFile[civitai.ModelVersion].model_validate_json(f.read())
+            with open(model.paths.hash, 'r', encoding='utf-8') as f:
+                print(model.paths.hash)
+                hash_data = HashFileDataTA.validate_json(f.read())
 
             # Get stats data
-            model_version = next((version for version in model_data["modelVersions"] if version["id"] == version_data.get('id')), None)
-            stats = model_version.get('stats', {})
-            fileSizeKB = model_version.get('files', [{}])[0].get('sizeKB', None)
-            fileSizeMB = fileSizeKB / 1024
+            model_version = next((version for version in model_data.modelVersions if version.id == version_data.data.id), None)
+            stats = model_version.stats if model_version else None
+            fileSizeKB = model_version.files[0].sizeKB if model_version else None
+            fileSizeMB = (fileSizeKB or 0) / 1024
             
             # Generate image gallery HTML
             gallery_html = ""
@@ -56,7 +75,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 """
                 for i, img_path in enumerate(preview_images):
                     relative_path = img_path.name
-                    json_path = output_dir / f"{img_path.stem}.json"
+                    json_path = config.output / f"{img_path.stem}.json"
 
                     # Load metadata if exists
                     metadata = {}
@@ -64,8 +83,8 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                         try:
                             with open(json_path, 'r', encoding='utf-8') as f:
                                 metadata = json.load(f)
-                        except:
-                            pass
+                        except json.JSONDecodeError as e:
+                            raise e
                             
                     metadata_attr = f'data-metadata="{html.escape(json.dumps(metadata))}"' if metadata else ''
 
@@ -91,7 +110,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
                 0: '#27ae60',
                 1: '#e93826'
             }
-            background_color = color_map.get(model_data.get('nsfw', 'N/A'), '#95a5a6')
+            background_color = color_map.get(model_data.nsfw, '#95a5a6')
 
             # HTML template
             html_content = f"""
@@ -100,7 +119,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{model_data.get('name', 'Model Information')}</title>
+    <title>{model_data.name}</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -247,11 +266,7 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         .likes-fill {{
             height: 100%;
             background-color: #27ae60;
-            width: {
-                (stats.get('thumbsUpCount', 0) / (stats.get('thumbsUpCount', 0) + stats.get('thumbsDownCount', 0)) * 100) 
-                if (stats.get('thumbsUpCount', 0) + stats.get('thumbsDownCount', 0)) > 0 
-                else 0
-            }%;
+            width: {get_rating_bar_width(stats)}%;
         }}
         
         /* New gallery styles */
@@ -386,10 +401,10 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
     <div class="container">
         <div class="header">
             <div class="menu"><a href="../index.html">Civitai Data Manager</a></div>
-            <h1>{model_data.get('name', 'Model Name')}</h1>
-            <div><em>{version_data.get('name', 'Version Name')}</em></div>
+            <h1>{model_data.name}</h1>
+            <div><em>{version_data.data.name}</em></div>
             <div>by <strong>
-                {'<a href="https://civitai.com/user/' + model_data.get('creator', {}).get('username', 'Unknown Creator') + '" target="_blank">' + model_data.get('creator', {}).get('username', 'Unknown Creator') + '</a>' if model_data.get('creator', {}).get('username', 'Unknown Creator') != 'Unknown Creator' else model_data.get('creator', {}).get('username', 'Unknown Creator')}
+                {'<a href="https://civitai.com/user/' + model_data.creator.username + '" target="_blank">' + model_data.creator.username + '</a>' if model_data.creator.username != 'Unknown Creator' else model_data.creator.username}
             </strong></div>
         </div>
 
@@ -398,30 +413,30 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         <div class="section">
             <h2>Model Information</h2>
             <div class="label">Type:</div>
-            <div class="value">{model_data.get('type', 'N/A')}</div>
+            <div class="value">{model_data.type}</div>
 
             <div class="label">Model ID:</div>
-            <div class="value">{model_data.get('id', 'N/A')}</div>
+            <div class="value">{model_data.id}</div>
 
             <div class="label">Version ID:</div>
-            <div class="value">{version_data.get('id', 'N/A')}</div>
+            <div class="value">{version_data.data.id}</div>
             
             <!-- <div class="label">NSFW:</div>
             <div class="value">
-                <span class="nsfw-level">{model_data.get('nsfw', 'None')}</span>
+                <span class="nsfw-level">{model_data.nsfw}</span>
             </div> -->
             
             <!-- <div class="label">Allow Commercial Use:</div>
             <div class="value">
-                {' '.join(f'<span class="tag">{use}</span>' for use in model_data.get('allowCommercialUse', ['N/A']))}
+                {' '.join(f'<span class="tag">{use}</span>' for use in (model_data.allowCommercialUse or []))}
             </div> -->
             
             <div class="label">Description:</div>
-            <div class="description">{model_data.get('description', 'No description available')}</div>
+            <div class="description">{model_data.description}</div>
             
             <div class="label">Tags:</div>
             <div class="tags">
-                {' '.join(f'<span class="tag">{tag}</span>' for tag in model_data.get('tags', []))}
+                {' '.join(f'<span class="tag">{tag}</span>' for tag in model_data.tags)}
             </div>
         </div>
 
@@ -430,30 +445,30 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Downloads</div>
-                    <div class="stat-value">{stats.get('downloadCount', 0):,}</div>
+                    <div class="stat-value">{stats.downloadCount if stats else None:,}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Favorites</div>
-                    <div class="stat-value">{stats.get('favoriteCount', 0):,}</div>
+                    <div class="stat-value">{stats.favoriteCount if stats else None:,}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Comments</div>
-                    <div class="stat-value">{stats.get('commentCount', 0):,}</div>
+                    <div class="stat-value">{stats.commentCount if stats else None:,}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Tips Received</div>
-                    <div class="stat-value">{stats.get('tippedAmountCount', 0):,}</div>
+                    <div class="stat-value">{stats.tippedAmountCount if stats else None:,}</div>
                 </div>
             </div>
             
             <div style="margin-top: 20px;">
                 <div class="label">Rating Distribution</div>
                 <div class="rating-bar">
-                    <span>👍 {stats.get('thumbsUpCount', 0):,}</span>
+                    <span>👍 {stats.thumbsUpCount if stats else None:,}</span>
                     <div class="likes-ratio">
                         <div class="likes-fill"></div>
                     </div>
-                    <span>👎 {stats.get('thumbsDownCount', 0):,}</span>
+                    <span>👎 {stats.thumbsDownCount if stats else None:,}</span>
                 </div>
             </div>
         </div>
@@ -461,21 +476,21 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         <div class="section">
             <h2>Version Information</h2>
             <div class="label">Created At:</div>
-            <div class="value">{version_data.get('createdAt', 'N/A')}</div>
+            <div class="value">{version_data.createdAt}</div>
             
             <div class="label">Updated At:</div>
-            <div class="value">{version_data.get('updatedAt', 'N/A')}</div>
+            <div class="value">{version_data.updatedAt}</div>
             
             <div class="label">Base Model:</div>
-            <div class="value">{version_data.get('baseModel', 'N/A')}</div>
+            <div class="value">{version_data.data.baseModel}</div>
 
-            {'<div class="label">Trained Words:</div><div class="tags"> ' + ' '.join(f'<span class="tag">{word}</span>' for word in version_data.get('trainedWords', [])) + '</div>' if version_data.get('trainedWords') else ''}
+            {'<div class="label">Trained Words:</div><div class="tags"> ' + ' '.join(f'<span class="tag">{word}</span>' for word in version_data.data.trainedWords) + '</div>' if version_data.data.trainedWords else ''}
         </div>
 
         <div class="section">
             <h2>File Information</h2>
             <div class="label">Filename:</div>
-            <div class="value" style="word-break: break-all;">{base_name}</div>
+            <div class="value" style="word-break: break-all;">{model.sanitized_name}</div>
 
             <div class="label">SHA256 Hash:</div>
             <div class="value" style="word-break: break-all;">{hash_data.get('hash_value', 'N/A')}</div>
@@ -487,9 +502,9 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
         <div class="section">
             <h2>Links</h2>
             <div class="value">
-                <a href="https://civitai.com/models/{model_data.get('id', '')}" target="_blank">Civitai Model Page</a>
+                <a href="https://civitai.com/models/{model_data.id}" target="_blank">Civitai Model Page</a>
                 <br />
-                <a href="https://civitai.com/api/download/models/{model_data.get('id', '')}" target="_blank">Civitai Download URL</a>
+                <a href="https://civitai.com/api/download/models/{model_data.id}" target="_blank">Civitai Download URL</a>
             </div>
         </div>
     </div>
@@ -749,16 +764,16 @@ def generate_html_summary(output_dir, safetensors_path, VERSION):
 </html>
 """
             # Write HTML file
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html_content)
+            with open(model.paths.html, 'w', encoding='utf-8') as f:
+                _ = f.write(html_content)
                 
-            print(f"HTML summary generated: {html_path}")
+            print(f"HTML summary generated: {model.paths.html}")
             return True
                 
         except json.JSONDecodeError as e:
-            print(f"Error parsing JSON data: {str(e)}")
+            raise Exception(f"Error parsing JSON data: {str(e)}") from e
             return False
             
     except Exception as e:
-        print(f"Error generating HTML summary: {str(e)}")
+        raise Exception(f"Error generating HTML summary: {str(e)}") from e
         return False

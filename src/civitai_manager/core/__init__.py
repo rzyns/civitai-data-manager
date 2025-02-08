@@ -1,1 +1,1 @@
-from .metadata_manager import process_single_file, process_directory
+from .metadata_manager import process_single_file as process_single_file, process_directory as process_directory
