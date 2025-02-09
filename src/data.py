@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
@@ -9,6 +10,8 @@ import pydantic
 from civitai import Model
 from civitai_manager.utils.string_utils import sanitize_filename
 
+
+MISSING_FILES_NAME = "missing_from_civitai.txt"
 
 class HashType(StrEnum):
     SHA256 = "SHA256"
@@ -45,6 +48,11 @@ class ModelPaths(pydantic.BaseModel):
             "html": self.html,
         }
 
+INFO_SUFFIX = "_civitai_model.json"
+MODEL_VERSION_SUFFIX = "_civitai_model_version.json"
+HASH_SUFFIX = "_hash.json"
+HTML_SUFFIX = ".html"
+
 class ModelData(pydantic.BaseModel):
     base_dir: pydantic.DirectoryPath
     safetensors: pydantic.FilePath
@@ -65,11 +73,15 @@ class ModelData(pydantic.BaseModel):
         p = ModelPaths(
             base_dir=self.base_dir,
             output_dir=output_dir,
-            info=output_dir / Path(f"{self.sanitized_name}_civitai_model.json"),
-            version=output_dir / Path(f"{self.sanitized_name}_civitai_model_version.json"),
-            hash=output_dir / Path(f"{self.sanitized_name}_hash.json"),
+            info=output_dir / Path(f"{self.sanitized_name}{INFO_SUFFIX}"),
+            version=output_dir / Path(f"{self.sanitized_name}{MODEL_VERSION_SUFFIX}"),
+            hash=output_dir / Path(f"{self.sanitized_name}{HASH_SUFFIX}"),
             safetensors=self.safetensors,
-            html=output_dir / Path(f"{self.sanitized_name}.html"),
+            html=output_dir / Path(f"{self.sanitized_name}{HTML_SUFFIX}"),
         )
 
         return p
+
+    @cached_property
+    def required_paths(self) -> Iterable[Path]:
+        return [p for p in filter(lambda p: p.stem.endswith(".json"), self.paths.as_dict().values())]

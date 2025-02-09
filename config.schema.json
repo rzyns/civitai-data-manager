@@ -1,0 +1,109 @@
+{
+    "properties": {
+        "single": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Single"
+        },
+        "all": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "All"
+        },
+        "output": {
+            "anyOf": [
+                {
+                    "format": "path",
+                    "type": "string"
+                },
+                {
+                    "format": "directory-path",
+                    "type": "string"
+                }
+            ],
+            "title": "Output"
+        },
+        "notimeout": {
+            "default": false,
+            "title": "Notimeout",
+            "type": "boolean"
+        },
+        "images": {
+            "default": false,
+            "title": "Images",
+            "type": "boolean"
+        },
+        "generateimagejson": {
+            "default": false,
+            "title": "Generateimagejson",
+            "type": "boolean"
+        },
+        "noimages": {
+            "default": false,
+            "title": "Noimages",
+            "type": "boolean"
+        },
+        "onlynew": {
+            "default": false,
+            "title": "Onlynew",
+            "type": "boolean"
+        },
+        "skipmissing": {
+            "default": false,
+            "title": "Skipmissing",
+            "type": "boolean"
+        },
+        "onlyhtml": {
+            "default": false,
+            "title": "Onlyhtml",
+            "type": "boolean"
+        },
+        "onlyupdate": {
+            "default": false,
+            "title": "Onlyupdate",
+            "type": "boolean"
+        },
+        "clean": {
+            "default": false,
+            "title": "Clean",
+            "type": "boolean"
+        },
+        "api_key": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Api Key"
+        },
+        "use_swarm": {
+            "default": false,
+            "title": "Use Swarm",
+            "type": "boolean"
+        },
+        "$schema": {
+            "type": "string"
+        }
+    },
+    "title": "Config",
+    "type": "object",
+    "additionalProperties": false
+}

@@ -1,5 +1,8 @@
 {
-    "all": "path/to/models/directory",
-    "output": "path/to/output/directory",
-    "images": true
+    "$schema": "./config.schema.json",
+    "all": "E:\\Models\\loras\\il\\animal",
+    "output": "out",
+    "images": true,
+    "api_key": "335c04137ca7394b19079fb9ab28ad2a",
+    "use_swarm": true
 }

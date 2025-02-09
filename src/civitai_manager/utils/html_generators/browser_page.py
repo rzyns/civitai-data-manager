@@ -6,6 +6,8 @@ from typing import TypedDict
 from pydantic import TypeAdapter
 
 from civitai import ModelResponseData, ModelVersion, Tag
+from civitai_manager.utils.config import Config
+from data import INFO_SUFFIX, MISSING_FILES_NAME, ModelData
 from file_types import HashFileData, HashFileDataTA, StoredFile
 from ..string_utils import sanitize_filename
 from datetime import datetime
@@ -43,7 +45,7 @@ class ModelsByTypeEntry(BaseModelsByTypeEntry):
 def get_html_tags(tags: Iterable[Tag | str]) -> str:
     return ','.join(tag.name.lower() if isinstance(tag, Tag) else tag.lower() for tag in tags)
 
-def generate_global_summary(output_dir: Path, VERSION: str):
+def generate_global_summary(config: Config, VERSION: str):
     """
     Generate an HTML summary of all models in the output directory
     
@@ -52,12 +54,12 @@ def generate_global_summary(output_dir: Path, VERSION: str):
         VERSION (str): Version of the script
     """
     # Find all model.json files
-    model_files = list(Path(output_dir).glob('*/*/civitai_model.json')) + \
-                    list(Path(output_dir).glob('*/*_civitai_model.json'))
+    model_files = list(Path(config.output).glob(f"*/*/{INFO_SUFFIX[1:] if INFO_SUFFIX.startswith("_") else INFO_SUFFIX}")) + \
+                    list(Path(config.output).glob(f"*/*{INFO_SUFFIX}"))
     
     # Read missing models file
     missing_models = set[str]()
-    missing_file = Path(output_dir) / 'missing_from_civitai.txt'
+    missing_file = config.output / MISSING_FILES_NAME
     if missing_file.exists():
         with open(missing_file, 'r', encoding='utf-8') as f:
             for line in f:
@@ -119,8 +121,9 @@ def generate_global_summary(output_dir: Path, VERSION: str):
             models_by_type['Missing from Civitai'] = []
         
         for filename in missing_models:
+            model = ModelData(base_dir=Path(config.all or "."), safetensors=Path(filename))
             base_name = Path(filename).stem
-            html_file = Path(output_dir) / base_name / f"{base_name}.html"
+            html_file = model.paths.html
             html_exists = html_file.exists()
 
             models_by_type['Missing from Civitai'].append(MissingFromCivitai(
@@ -550,7 +553,7 @@ def generate_global_summary(output_dir: Path, VERSION: str):
 """
 
     # Write the summary file
-    summary_path = Path(output_dir) / 'index.html'
+    summary_path = config.output / 'index.html'
     with open(summary_path, 'w', encoding='utf-8') as f:
         _ = f.write(html_content)
     

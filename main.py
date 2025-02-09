@@ -12,8 +12,10 @@ from civitai_manager.core.metadata_manager import (
     generate_image_json_files,
     get_output_path
 )
+from data import ModelData
 from src.civitai_manager.utils.html_generators.browser_page import generate_global_summary
 from src.civitai_manager.utils.config import Config, load_config, ConfigValidationError
+from deepdiff import diff
 
 import argparse
 import typed_argparse as tap
@@ -139,10 +141,20 @@ def main():
             sys.exit(1)
     else:
         config.output = get_output_path(clean=config.clean)
-    
+
+    config_path = config.output.joinpath("config.json")
+    if config_path.exists():
+        d = diff.DeepDiff(config.model_dump(), Config.model_validate_json(json_data=config_path.read_text()).model_dump())
+        if d:
+            print(d.pretty())
+            sys.exit(1)
+
+    _ = config_path.write_text(config.model_dump_json())
+
     if config.single:
         safetensors_path = Path(config.single)
-        _ = process_single_file(config, safetensors_path)
+        model = ModelData(base_dir=config.output, safetensors=safetensors_path)
+        _ = process_single_file(config, model)
     elif config.all:
         directory_path = Path(config.all)
         
@@ -154,7 +166,7 @@ def main():
             _ = process_directory(config, directory_path)
         
     if (config.single or config.all):
-        _ = generate_global_summary(config.output, VERSION)
+        _ = generate_global_summary(config, VERSION)
 
 if __name__ == "__main__":
     main()

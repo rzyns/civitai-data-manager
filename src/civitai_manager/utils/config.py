@@ -6,7 +6,7 @@ import pydantic
 class Config(pydantic.BaseModel):
     single: str | None      = pydantic.Field(default=None)
     all: str | None         = pydantic.Field(default=None)
-    output: pydantic.NewPath | pydantic.DirectoryPath      = pydantic.Field(default_factory=Path)
+    output: pydantic.NewPath | pydantic.DirectoryPath = pydantic.Field(default_factory=Path)
     notimeout: bool         = pydantic.Field(default=False)
     images: bool            = pydantic.Field(default=True)
     generateimagejson: bool = pydantic.Field(default=False)

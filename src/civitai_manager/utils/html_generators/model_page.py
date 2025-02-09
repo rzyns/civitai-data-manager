@@ -85,6 +85,8 @@ def generate_html_summary(config: Config, model: ModelData, VERSION: str) -> Non
                                 metadata = json.load(f)
                         except json.JSONDecodeError as e:
                             raise e
+                    else:
+                        raise FileNotFoundError(f"Metadata file not found: {json_path}")
                             
                     metadata_attr = f'data-metadata="{html.escape(json.dumps(metadata))}"' if metadata else ''
 
