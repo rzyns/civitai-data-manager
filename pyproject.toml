@@ -5,9 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.11.12",
+    "attrs>=25.1.0",
     "deepdiff>=8.2.0",
+    "jinja2>=3.1.5",
     "pydantic>=2.10.6",
-    "requests>=2.32.3",
     "typed-argparse>=0.3.1",
 ]
 
@@ -16,6 +18,7 @@ dev = [
     "basedpyright>=1.26.0",
     "ipython>=8.32.0",
     "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
 ]
 
 [build-system]
@@ -29,3 +32,10 @@ exclude = [
     ".venv",
 ]
 ignore = ["src/civitai_manager/migrations"]
+
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+reportUnusedCallResult = "warning"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

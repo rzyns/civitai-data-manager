@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -124,7 +125,7 @@ def get_config() -> Config:
     args = parse_cli_args(require_args=True)
     return Config.model_validate(args)
 
-def main():
+async def main():
     config = get_config()
     
     # Get base output path either from config/argument or user input
@@ -154,7 +155,7 @@ def main():
     if config.single:
         safetensors_path = Path(config.single)
         model = ModelData(base_dir=config.output, safetensors=safetensors_path)
-        _ = process_single_file(config, model)
+        _ = await process_single_file(config, model)
     elif config.all:
         directory_path = Path(config.all)
         
@@ -163,10 +164,10 @@ def main():
         elif config.generateimagejson:
             _ = generate_image_json_files(config.output)
         else:
-            _ = process_directory(config, directory_path)
+            _ = await process_directory(config, directory_path)
         
     if (config.single or config.all):
         _ = generate_global_summary(config, VERSION)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

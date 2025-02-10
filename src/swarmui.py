@@ -1,6 +1,7 @@
+import asyncio
 from enum import StrEnum
 import json
-import requests
+import aiohttp
 import pydantic
 
 class Session(pydantic.BaseModel):
@@ -55,16 +56,16 @@ class ListModelsOptions(pydantic.BaseModel):
 class DescribeModelResponse(pydantic.BaseModel):
     model: ModelData
 
-def get_new_session():
-    result = requests.post(
-        "http://localhost:7801/API/GetNewSession",
-        headers={"Content-Type": "application/json"},
-        data="{}"
-    )
+async def get_new_session():
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "http://localhost:7801/API/GetNewSession",
+            headers={"Content-Type": "application/json"},
+            data="{}",
+        ) as response:
+            return Session.model_validate(await response.json())
 
-    return Session.model_validate(result.json())
-
-def list_models(session_id_or_session: str | Session, opts: ListModelsOptions | None = None):
+async def list_models(session_id_or_session: str | Session, opts: ListModelsOptions | None = None):
     if isinstance(session_id_or_session, Session):
         session_id = session_id_or_session.session_id
     else:
@@ -79,37 +80,37 @@ def list_models(session_id_or_session: str | Session, opts: ListModelsOptions | 
 
     data = {"session_id": session_id, **opts.model_dump(exclude_unset=True)}
 
-    result = requests.post(
-        "http://localhost:7801/API/ListModels",
-        headers={"Content-Type": "application/json"},
-        data=json.dumps(data),
-    )
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "http://localhost:7801/API/ListModels",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(data),
+        ) as response:
+            return ListModelsData.model_validate(await response.json())
 
-    try:
-        return ListModelsData.model_validate(result.json())
-    except requests.exceptions.JSONDecodeError as e:
-        raise Exception(f"Error decoding json for {opts}") from e
-        return result.text
-
-def describe_model(session_id_or_session: str | Session, subtype: ModelSubtype, model_name: str):
+async def describe_model(session_id_or_session: str | Session, subtype: ModelSubtype, model_name: str):
     if isinstance(session_id_or_session, Session):
         session_id = session_id_or_session.session_id
     else:
         session_id = session_id_or_session
 
     data = {"session_id": session_id, "modelName": model_name, "subtype": subtype}
-    result = requests.post(
-        "http://localhost:7801/API/DescribeModel",
-        headers={"Content-Type": "application/json"},
-        data=json.dumps(data),
-    )
 
-    return DescribeModelResponse.model_validate(result.json())
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "http://localhost:7801/API/DescribeModel",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(data),
+        ) as response:
+            return DescribeModelResponse.model_validate(await response.json())
 
 
-if __name__ == "__main__":
-    session = Session.model_validate(get_new_session())
-    models = list_models(session)
+async def main():
+    session = Session.model_validate(await get_new_session())
+    models = await list_models(session)
     if models.files:
         m = describe_model(session, ModelSubtype.LORA, models.files[0].name)
         print(m)
+
+if __name__ == "__main__":
+    asyncio.run(main())

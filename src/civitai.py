@@ -174,7 +174,7 @@ class Model(pydantic.BaseModel):
     stats: Stats
     metadata: Metadata | None = pydantic.Field(default=None)
 
-    allowCommercialUse: list[str] | None = pydantic.Field(default=None)
+    allowCommercialUse: str | list[str] | None = pydantic.Field(default=None)
 
 class ModelResponseData(Model):
     modelVersions: list[ModelVersion]

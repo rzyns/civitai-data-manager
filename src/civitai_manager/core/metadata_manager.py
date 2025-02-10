@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 import os
 from pathlib import Path
 import json
@@ -8,7 +7,6 @@ from datetime import datetime
 from textwrap import dedent
 import time
 import random
-from typing import cast
 
 import pydantic
 
@@ -21,7 +19,7 @@ from ..utils.file_tracker import ProcessedFilesManager
 from ..utils.string_utils import sanitize_filename
 from ..utils.html_generators.model_page import generate_html_summary
 
-import requests
+import aiohttp
 
 VERSION = "1.5.4"
 
@@ -196,7 +194,7 @@ def write_hash_file(output_dir: Path, safetensors_file: Path, hash_value: str):
     
     return hash_value
 
-def download_preview_image(image_url: str, output_dir: Path, base_name: str, index: int | None=None, is_video: bool=False, image_data: civitai.ModelVersionImage | None=None):
+async def download_preview_image(image_url: str, output_dir: Path, base_name: str, index: int | None=None, is_video: bool=False, image_data: civitai.ModelVersionImage | None=None):
     """
     Download a preview image from Civitai
     
@@ -230,15 +228,16 @@ def download_preview_image(image_url: str, output_dir: Path, base_name: str, ind
         image_path = output_dir / image_filename
 
         if not image_path.exists():
-            response = requests.get(full_size_url, stream=True)
-            if response.status_code == 200:
-                # Download and save the image
-                with open(image_path, 'wb') as f:
-                    for chunk in cast(Iterable[bytes], response.iter_content(chunk_size=8192)):
-                        if chunk:
-                            _ = f.write(chunk)
-            else:
-                raise Exception(f"Error downloading preview image: Status code {response.status_code}")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(full_size_url) as response:
+                    if response.status == 200:
+                        # Download and save the image
+                        with open(image_path, 'wb') as f:
+                            async for chunk in response.content.iter_chunked(n=8192):
+                                if chunk:
+                                    _ = f.write(chunk)
+                    else:
+                        raise Exception(f"Error downloading preview image: Status code {response.status}")
 
             # Download and save the metadata associated with the image
             if image_data:
@@ -489,7 +488,7 @@ def clean_output_directory(directory_path: Path, base_output_path: Path):
     
     return True
 
-def fetch_version_data(config: Config, hash_value: str, model: ModelData):
+async def fetch_version_data(config: Config, hash_value: str, model: ModelData):
     """
     Fetch version data from Civitai API using file hash
     
@@ -516,54 +515,55 @@ def fetch_version_data(config: Config, hash_value: str, model: ModelData):
         headers: dict[str, str] = {}
         if config.api_key:
             headers['Authorization'] = f"Bearer {config.api_key}"
-        
-        response = requests.get(civitai_url, headers=headers)
-        
-        if response.status_code == 200:
-            with open(model.paths.version, 'w', encoding='utf-8') as f:
-                response_data = civitai.ModelVersionResponseData.model_validate_json(response.text)
-                file_data = StoredFile[civitai.ModelVersionResponseData](
-                    createdAt=datetime.now().astimezone(),
-                    updatedAt=datetime.now().astimezone(),
-                    data=response_data,
-                )
-                
-                _ = f.write(file_data.model_dump_json(indent=4))
-                print(f"Version data successfully saved to {model.paths.info}")
 
-                # Remove from missing files list if it was there before
-                update_missing_files_list(config, model, None)  # Pass None to indicate file is back
-                
-                # Handle image downloads based on flags
-                if not config.noimages and response_data.images:
-                    if config.images:
-                        print(f"\nDownloading all preview images ({len(response_data.images)} images found)")
-                        for i, image_data in enumerate(response_data.images):
-                            if image_data.url:
-                                is_video: bool = image_data.type == 'video'
-                                _ = download_preview_image(image_data.url, model.paths.output_dir, model.sanitized_name, i, is_video, image_data)
-                    else:
-                        # Download only the first image
-                        if response_data.images[0].url:
-                            is_video = response_data.images[0].type == 'video'
-                            _ = download_preview_image(response_data.images[0].url, model.paths.output_dir, model.sanitized_name, 0, is_video, response_data.images[0])
+        async with aiohttp.ClientSession() as session:
+            async with session.get(civitai_url, headers=headers) as response:
+        
+                if response.status == 200:
+                    with open(model.paths.version, 'w', encoding='utf-8') as f:
+                        response_data = civitai.ModelVersionResponseData.model_validate_json(await response.text(encoding='utf-8'))
+                        file_data = StoredFile[civitai.ModelVersionResponseData](
+                            createdAt=datetime.now().astimezone(),
+                            updatedAt=datetime.now().astimezone(),
+                            data=response_data,
+                        )
+                        
+                        _ = f.write(file_data.model_dump_json(indent=4))
+                        print(f"Version data successfully saved to {model.paths.info}")
 
-                
-                # Return modelId if it exists
-                return response_data
-        else:
-            error_message = {
-                "error": "Failed to fetch Civitai data",
-                "status_code": response.status_code,
-                "timestamp": datetime.now().isoformat()
-            }
-            with open(model.paths.info, 'w', encoding='utf-8') as f:
-                _ = f.buffer.write(json_serialize(error_message))
-            print(f"Error: Failed to fetch Civitai data (Status code: {response.status_code})")
-            
-            # Update missing files list
-            update_missing_files_list(config, model, response.status_code)
-            # raise Exception(f"Error: Failed to fetch Civitai data (Status code: {response.status_code})")
+                        # Remove from missing files list if it was there before
+                        update_missing_files_list(config, model, None)  # Pass None to indicate file is back
+                        
+                        # Handle image downloads based on flags
+                        if not config.noimages and response_data.images:
+                            if config.images:
+                                print(f"\nDownloading all preview images ({len(response_data.images)} images found)")
+                                for i, image_data in enumerate(response_data.images):
+                                    if image_data.url:
+                                        is_video: bool = image_data.type == 'video'
+                                        _ = await download_preview_image(image_data.url, model.paths.output_dir, model.sanitized_name, i, is_video, image_data)
+                            else:
+                                # Download only the first image
+                                if response_data.images[0].url:
+                                    is_video = response_data.images[0].type == 'video'
+                                    _ = await download_preview_image(response_data.images[0].url, model.paths.output_dir, model.sanitized_name, 0, is_video, response_data.images[0])
+
+                        
+                        # Return modelId if it exists
+                        return response_data
+                else:
+                    error_message = {
+                        "error": "Failed to fetch Civitai data",
+                        "status_code": response.status,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    with open(model.paths.info, 'w', encoding='utf-8') as f:
+                        _ = f.buffer.write(json_serialize(error_message))
+                    print(f"Error: Failed to fetch Civitai data (Status code: {response.status})")
+                    
+                    # Update missing files list
+                    update_missing_files_list(config, model, response.status)
+                    # raise Exception(f"Error: Failed to fetch Civitai data (Status code: {response.status_code})")
 
     except Exception as e:
         raise Exception(f"fetch_version_data({hash_value})") from e
@@ -572,7 +572,7 @@ def fetch_version_data(config: Config, hash_value: str, model: ModelData):
         # update_missing_files_list(base_path, safetensors_path, 0)  # Use 0 for connection errors
         return None
 
-def fetch_model_details(model_id: civitai.ModelId, output_dir: Path, safetensors_path: Path):
+async def fetch_model_details(model_id: civitai.ModelId, output_dir: Path, safetensors_path: Path):
     """
     Fetch detailed model information from Civitai API
     
@@ -587,33 +587,35 @@ def fetch_model_details(model_id: civitai.ModelId, output_dir: Path, safetensors
         civitai_model_url = f"https://civitai.com/api/v1/models/{model_id}"
         print("\nFetching model details from Civitai API:")
         print(civitai_model_url)
-        
-        response = requests.get(civitai_model_url)
-        base_name = sanitize_filename(safetensors_path.stem)
-        model_data_path = output_dir / f"{base_name}{INFO_SUFFIX}"
-        
-        with open(model_data_path, 'w', encoding='utf-8') as f:
-            if response.status_code == 200:
-                _ = f.write(civitai.ModelResponseData.model_validate_json(response.text).model_dump_json(indent=4))
-                print(f"Model details successfully saved to {model_data_path}")
-                return True
-            else:
-                error_data = {
-                    "error": "Failed to fetch model details",
-                    "status_code": response.status_code,
-                    "timestamp": datetime.now().isoformat()
-                }
-                _ = f.buffer.write(json_serialize(error_data))
-                # print(f"Error: Could not fetch model details (Status code: {response.status_code})")
-                # return False
-                raise Exception(f"Error: Could not fetch model details (Status code: {response.status_code})")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(civitai_model_url) as response:
+
+                base_name = sanitize_filename(safetensors_path.stem)
+                model_data_path = output_dir / f"{base_name}{INFO_SUFFIX}"
+                
+                with open(model_data_path, 'w', encoding='utf-8') as f:
+                    if response.status == 200:
+                        _ = f.write(civitai.ModelResponseData.model_validate_json(await response.text(encoding="utf-8")).model_dump_json(indent=4))
+                        print(f"Model details successfully saved to {model_data_path}")
+                        return True
+                    else:
+                        error_data = {
+                            "error": "Failed to fetch model details",
+                            "status_code": response.status,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        _ = f.buffer.write(json_serialize(error_data))
+                        # print(f"Error: Could not fetch model details (Status code: {response.status_code})")
+                        # return False
+                        raise Exception(f"Error: Could not fetch model details (Status code: {response.status})")
                 
     except Exception as e:
         raise e
         print(f"Error fetching model details: {str(e)}")
         return False
 
-def check_for_updates(safetensors_path: Path, output_dir: Path, hash_value: str, api_key: str | None=None):
+async def check_for_updates(safetensors_path: Path, output_dir: Path, hash_value: str, api_key: str | None=None):
     """
     Check if the model needs to be updated by comparing updatedAt timestamps
     
@@ -655,33 +657,35 @@ def check_for_updates(safetensors_path: Path, output_dir: Path, hash_value: str,
         headers: dict[str, str] = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        
-        response = requests.get(civitai_url, headers=headers)
-        if response.status_code != 200:
-            print(f"Error checking for updates (Status code: {response.status_code})")
-            return True
-            
-        current_data = civitai.ModelVersion.model_validate_json(response.text)
-        current_updated_at: datetime | None = current_data.updatedAt
-        
-        if not current_updated_at:
-            return True
-            
-        # Compare timestamps
-        if current_updated_at == existing_updated_at:
-            print(f"\nModel {safetensors_path.name} is up to date (Last updated: {existing_updated_at})")
-            return False
-        else:
-            print(f"\nUpdate available for {safetensors_path.name}")
-            print(f"Current version: {existing_updated_at}")
-            print(f"New version: {current_updated_at}")
-            return True
+
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(civitai_url, headers=headers) as response:
+                if response.status != 200:
+                    print(f"Error checking for updates (Status code: {response.status})")
+                    return True
+                    
+                current_data = civitai.ModelVersion.model_validate_json(await response.text(encoding='utf-8'))
+                current_updated_at: datetime | None = current_data.updatedAt
+                
+                if not current_updated_at:
+                    return True
+                    
+                # Compare timestamps
+                if current_updated_at == existing_updated_at:
+                    print(f"\nModel {safetensors_path.name} is up to date (Last updated: {existing_updated_at})")
+                    return False
+                else:
+                    print(f"\nUpdate available for {safetensors_path.name}")
+                    print(f"Current version: {existing_updated_at}")
+                    print(f"New version: {current_updated_at}")
+                    return True
             
     except Exception as e:
         print(f"Error checking for updates: {str(e)}")
         return True  # If there's any error, proceed with update
 
-def process_single_file(config: Config, model: ModelData):
+async def process_single_file(config: Config, model: ModelData):
     """
     Process a single safetensors file
     
@@ -739,15 +743,15 @@ def process_single_file(config: Config, model: ModelData):
         (hash_value, metadata) = extract_metadata(model.safetensors, model_output_dir)
 
     # Check if update is needed
-    if not check_for_updates(model.safetensors, model_output_dir, hash_value):
+    if not await check_for_updates(model.safetensors, model_output_dir, hash_value):
         print("Skipping file (no updates available)")
         return True
     
     # Process the file
     if config.onlyupdate or metadata:
-        model_version = fetch_version_data(config, hash_value, model)
+        model_version = await fetch_version_data(config, hash_value, model)
         if model_version:
-            _ = fetch_model_details(model_version.modelId, model_output_dir, model.safetensors)
+            _ = await fetch_model_details(model_version.modelId, model_output_dir, model.safetensors)
             model_data = ModelData(
                 base_dir=config.output,
                 safetensors=model.safetensors,
@@ -757,7 +761,7 @@ def process_single_file(config: Config, model: ModelData):
             
     return False
 
-def process_directory(config: Config, directory_path: Path):
+async def process_directory(config: Config, directory_path: Path):
     """
     Process all safetensors files in a directory
             
@@ -829,7 +833,7 @@ def process_directory(config: Config, directory_path: Path):
     files_processed = 0
     for i, file_path in enumerate(safetensors_files, 1):
         print(f"\n[{i}/{len(safetensors_files)}] Processing: {file_path.relative_to(directory_path)}")
-        success = process_single_file(config, ModelData(base_dir=config.output, safetensors=file_path))
+        success = await process_single_file(config, ModelData(base_dir=config.output, safetensors=file_path))
         
         if success:
             files_processed += 1
